@@ -237,8 +237,8 @@ void SlippiMatchmaking::startMatchmaking()
 	}
 
 	ENetAddress addr;
-	std::string MM_DOUBLES = "192.168.1.7";
-	//std::string MM_DOUBLES = "54.149.65.170";
+	//std::string MM_DOUBLES = "192.168.1.7";
+	std::string MM_DOUBLES = "54.149.65.170";
 	enet_address_set_host(&addr, MM_DOUBLES.c_str());
 	addr.port = 3030;
 
@@ -322,13 +322,16 @@ void SlippiMatchmaking::startMatchmaking()
 	sprintf(lanAddr, "%s:%d", IP, m_hostPort);
 
 	// Send message to server to create ticket
+	int version = 7;
 	json request;
 	request["type"] = "join";
-	request["version"] = 5;
+	request["version"] = version;
 	request["username"] = userInfo.displayName;
 	request["lanAddr"] = lanAddr;
 	request["connectCode"] = connectCodeBuf;
 	sendMessage(request);
+
+	INFO_LOG(SLIPPI_ONLINE, "[Matchmaking] Searching with test build v%d", version);
 
 	m_joinedLobby = false;
 	m_state = ProcessState::MATCHMAKING;
