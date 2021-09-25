@@ -962,7 +962,20 @@ bool SConfig::AutoSetup(EBootBS2 _BootBS2)
 						m_gameType = GAMETYPE_MELEE_MEX;
 					}
 				}
-			}
+
+				// Set subgame to vanilla by default
+				std::string subGameTypeId = "GALE01";
+
+				// Set subgame type id based on disc name
+                if (pVolume->GetLongNames()[DiscIO::Language::LANGUAGE_ENGLISH].find("Akaneia") !=
+                         std::string::npos)
+                    subGameTypeId = "GALEAB";
+                else if (pVolume->GetLongNames()[DiscIO::Language::LANGUAGE_ENGLISH].find("Beyond") !=
+                         std::string::npos)
+                    subGameTypeId = "GALEBM";
+
+				SConfig().GetInstance().m_strSubGameID = subGameTypeId;
+            }
 			else if (m_strGameID == "GTME01")
 			{
 				m_gameType = GAMETYPE_MELEE_UPTM;

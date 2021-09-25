@@ -430,7 +430,8 @@ void SlippiMatchmaking::startMatchmaking()
 	        {"mode", m_searchSettings.mode},
 	        {"connectCode", connectCodeBuf},
 	        {"game", {
-	            {"id", SConfig::GetInstance().m_strGameID},
+                {"id", SConfig::GetInstance().m_strGameID},
+                {"ex_id", SConfig::GetInstance().m_strSubGameID},
 	            {"revision", SConfig::GetInstance().m_revision},
 	            {"type", SConfig::GetInstance().m_gameType},
 	        }}
