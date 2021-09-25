@@ -632,7 +632,7 @@ void SConfig::LoadCoreSettings(IniFile &ini)
 	core->Get("SlippiNetplayPort", &m_slippiNetplayPort, 2626);
 	core->Get("SlippiForceLanIp", &m_slippiForceLanIp, false);
 	core->Get("SlippiLanIp", &m_slippiLanIp, "");
-	core->Get("SlippiEnableCustomMatchmakingServers", &m_slippiCustomMMEnabled, false);
+	core->Get("SlippiEnableCustomMatchmakingServers", &m_slippiCustomMMEnabled, true);
 	core->Get("SlippiCustomMatchmakingServerURL", &m_slippiCustomMMServerURL, "lylat.gg");
 	core->Get("SlippiCustomMatchmakingReportingURL", &m_slippiCustomMMReportingURL, "https://lylat.gg/reports");
 	core->Get("SlippiReplayMonthFolders", &m_slippiReplayMonthFolders, false);
