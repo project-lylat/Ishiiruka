@@ -17,7 +17,7 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           workflow: pr-build.yml
-          branch: slippi
+          branch: lylat
       - name: Organize release files"
         run: |
           rm -rf *playback*
