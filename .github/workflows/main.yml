@@ -17,14 +17,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        build_type: [Netplay, Playback]
+        build_type: [Netplay]
         include:
           - build_type: Netplay
             artifact_name: windows64-netplay
             build_config: Release
-          - build_type: Playback
-            artifact_name: windows64-playback
-            build_config: ReleasePlayback
     env:
       DXSDK_DIR: "C:\\Program Files (x86)\\Microsoft DirectX SDK (June 2010)\\"
     name: "Windows ${{ matrix.build_type }}"
@@ -115,14 +112,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        build_type: [Netplay, Playback]
+        build_type: [Netplay]
         include:
           - build_type: Netplay
             artifact_name: linux-netplay
             build_config: netplay
-          - build_type: Playback
-            artifact_name: linux-playback
-            build_config: playback
     name: "Ubuntu ${{ matrix.build_type }}"
     runs-on: ubuntu-18.04
     steps:
@@ -210,14 +204,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        build_type: [Netplay, Playback]
+        build_type: [Netplay]
         include:
           - build_type: Netplay
             artifact_name: macOS-netplay
             build_config: netplay
-          - build_type: Playback
-            artifact_name: macOS-playback
-            build_config: playback
     name: "macOS ${{ matrix.build_type }}"
     runs-on: macos-10.15
     steps:
