@@ -2839,6 +2839,9 @@ void CEXISlippi::prepareOnlineStatus()
 		version::Semver200_version currentVersion(scm_slippi_semver_str);
 
 		appState = latestVersion > currentVersion ? 2 : 1;
+		// TODO: we need to handle proper lylat updates when there's enough bandwidth, for now
+		// TODO: Only match users that are using the same version on the mm server so the app can still be used
+		// TODO: fix black screen when there's a required update (lylat-ssbm-asm)
 	}
 
 	m_read_queue.push_back(appState);
