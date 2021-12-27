@@ -3,11 +3,11 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleExecutable</key>
-	<string>Slippi Dolphin</string>
+	<string>Lylat Dolphin</string>
 	<key>CFBundleName</key>
-	<string>Slippi Dolphin</string>
+	<string>Lylat Dolphin</string>
 	<key>CFBundleDisplayName</key>
-	<string>Slippi Dolphin</string>
+	<string>Lylat Dolphin</string>
 	<key>CFBundleIconFile</key>
 	<string>Dolphin.icns</string>
     <key>LSApplicationCategoryType</key>
@@ -18,7 +18,7 @@
         <true/>
     </dict>
 	<key>CFBundleIdentifier</key>
-	<string>com.project-slippi.dolphin</string>
+	<string>com.project-lylat.dolphin</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>English</string>
 	<key>CFBundleLocalizations</key>
