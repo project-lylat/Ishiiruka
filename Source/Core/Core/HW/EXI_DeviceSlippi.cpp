@@ -1887,8 +1887,8 @@ void CEXISlippi::startFindMatch(u8 *payload)
 	// else get force removed from queue and have to requeue
 	if (SlippiMatchmaking::IsFixedRulesMode(search.mode))
 	{
-		// Character check
-		if (localSelections.characterId >= 26 && !(isMex && isCustomMMEnabled))
+		// mex check
+		if (!(isMex && isCustomMMEnabled))
 		{
 			forcedError = ERROR_MSG_INVALID_CHAR;
 			return;
