@@ -433,7 +433,8 @@ void SlippiMatchmaking::startMatchmaking()
                 {"id", SConfig::GetInstance().m_strGameID},
                 {"ex_id", SConfig::GetInstance().m_strSubGameID},
 	            {"revision", SConfig::GetInstance().m_revision},
-	            {"type", SConfig::GetInstance().m_gameType},
+                {"type", SConfig::GetInstance().m_gameType},
+                {"name", SConfig::GetInstance().m_strGameLongName},
 	        }}
 	};
 	request["appVersion"] = scm_slippi_semver_str;

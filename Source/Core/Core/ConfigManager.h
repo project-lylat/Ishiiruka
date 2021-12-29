@@ -286,6 +286,7 @@ struct SConfig : NonCopyable
 	std::string m_strApploader;
     std::string m_strGameID;
     std::string m_strSubGameID;
+    std::string m_strGameLongName;
 	std::string m_strName;
 	std::string m_strWiiSDCardPath;
 	u16 m_revision;
@@ -296,6 +297,7 @@ struct SConfig : NonCopyable
 	bool AutoSetup(EBootBS2 _BootBS2);
     const std::string &GetGameID() const { return m_strGameID; }
     const std::string &GetSubGameID() const { return m_strSubGameID; }
+    const std::string &GetGameLongName() const { return m_strGameLongName; }
 	void CheckMemcardPath(std::string &memcardPath, const std::string &gameRegion, bool isSlotA);
 	DiscIO::Language GetCurrentLanguage(bool wii) const;
 

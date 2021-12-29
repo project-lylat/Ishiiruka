@@ -965,12 +965,13 @@ bool SConfig::AutoSetup(EBootBS2 _BootBS2)
 
 				// Set subgame to vanilla by default
 				std::string subGameTypeId = "GALE01";
+                m_strGameLongName = SConfig().GetInstance().m_strGameLongName = pVolume->GetLongNames()[DiscIO::Language::LANGUAGE_ENGLISH];
 
 				// Set subgame type id based on disc name
-                if (pVolume->GetLongNames()[DiscIO::Language::LANGUAGE_ENGLISH].find("Akaneia") !=
+                if (m_strGameLongName.find("Akaneia") !=
                          std::string::npos)
                     subGameTypeId = "GALEAB";
-                else if (pVolume->GetLongNames()[DiscIO::Language::LANGUAGE_ENGLISH].find("Beyond") !=
+                else if (m_strGameLongName.find("Beyond") !=
                          std::string::npos)
                     subGameTypeId = "GALEBM";
 

@@ -1887,8 +1887,8 @@ void CEXISlippi::startFindMatch(u8 *payload)
 	// else get force removed from queue and have to requeue
 	if (SlippiMatchmaking::IsFixedRulesMode(search.mode))
 	{
-		// mex check
-		if (!(isMex && isCustomMMEnabled))
+		// m-ex check
+		if ((localSelections.characterId >= 26 && !isMex) || (isMex && !isCustomMMEnabled))
 		{
 			forcedError = ERROR_MSG_INVALID_CHAR;
 			return;
@@ -2285,13 +2285,17 @@ void CEXISlippi::prepareOnlineMatchState()
 		oppName = std::string("Player");
 #endif
 
-		// Check if someone is picking dumb characters in non-direct
-		auto localCharOk = lps.characterId < 26;
+        auto isMex = SConfig::GetInstance().m_gameType == GAMETYPE_MELEE_MEX;
+        auto isCustomMMEnabled = SConfig::GetInstance().m_slippiCustomMMEnabled;
+
+        // Check if someone is picking dumb characters in non-direct/mex
+		auto localCharOk = lps.characterId < 26 || isMex;
 		auto remoteCharOk = true;
+
 		INFO_LOG(SLIPPI_ONLINE, "remotePlayerCount: %d", remotePlayerCount);
 		for (int i = 0; i < remotePlayerCount; i++)
 		{
-			if (rps[i].characterId >= 26)
+			if (rps[i].characterId >= 26 && !isMex)
 				remoteCharOk = false;
 		}
 
@@ -2316,14 +2320,12 @@ void CEXISlippi::prepareOnlineMatchState()
 			break;
 		}
 
-		auto isMex = SConfig::GetInstance().m_gameType == GAMETYPE_MELEE_MEX;
-		auto isCustomMMEnabled = SConfig::GetInstance().m_slippiCustomMMEnabled;
 
 		if (SlippiMatchmaking::IsFixedRulesMode(lastSearch.mode))
 		{
 			// If we enter one of these conditions, someone is doing something bad, clear the lobby
 
-			if (!localCharOk && !(isMex && isCustomMMEnabled))
+			if (!localCharOk || (isMex && !isCustomMMEnabled))
 			{
 				handleConnectionCleanup();
 				forcedError = ERROR_MSG_INVALID_CHAR;
@@ -2331,7 +2333,7 @@ void CEXISlippi::prepareOnlineMatchState()
 				return;
 			}
 
-			if (!remoteCharOk && !(isMex && isCustomMMEnabled))
+			if (!remoteCharOk || (isMex && !isCustomMMEnabled))
 			{
 				handleConnectionCleanup();
 				prepareOnlineMatchState();
