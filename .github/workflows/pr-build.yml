@@ -78,6 +78,11 @@ jobs:
           echo "GIT_HASH=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
           echo "GIT_TAG=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
           echo "CURR_DATE=$(date +%Y-%m-%d)" >> $GITHUB_ENV
+      - name: "Cache Build Dir"
+        uses: actions/cache@v2
+        with:
+          path: ${{ github.workspace }}/build
+          key: ${{ runner.os }}-build
       - name: "Build ${{ matrix.build_type }} Dolphin"
         shell: cmd
         run: |
@@ -190,6 +195,11 @@ jobs:
           qtbase5-private-dev \
           libxxf86vm-dev \
           x11proto-xinerama-dev
+      - name: "Cache Build Dir"
+        uses: actions/cache@v2
+        with:
+          path: ./build
+          key: ${{ runner.os }}-build
       - name: "Build ${{ matrix.build_type }} Dolphin"
         if: success()
         working-directory: ${{ github.workspace }}
@@ -270,6 +280,11 @@ jobs:
           libao \
           sound-touch \
           hidapi
+      - name: "Cache Build Dir"
+        uses: actions/cache@v2
+        with:
+          path: ./build
+          key: ${{ runner.os }}-build
       - name: "Build ${{ matrix.build_type }} Dolphin"
         if: success()
         shell: bash
