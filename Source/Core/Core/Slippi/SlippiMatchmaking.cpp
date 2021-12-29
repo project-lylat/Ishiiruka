@@ -412,6 +412,7 @@ void SlippiMatchmaking::startMatchmaking()
 
 	if (SConfig::GetInstance().m_slippiForceLanIp)
 	{
+
 		WARN_LOG(SLIPPI_ONLINE, "[Matchmaking] Overwriting LAN IP sent with configured address");
 		sprintf(lanAddr, "%s:%d", SConfig::GetInstance().m_slippiLanIp.c_str(), m_hostPort);
 	}
