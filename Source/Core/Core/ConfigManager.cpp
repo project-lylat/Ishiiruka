@@ -974,6 +974,9 @@ bool SConfig::AutoSetup(EBootBS2 _BootBS2)
                 else if (m_strGameLongName.find("Beyond") !=
                          std::string::npos)
                     subGameTypeId = "GALEBM";
+                else if (m_strGameLongName.find("Midnight") !=
+                         std::string::npos)
+                    subGameTypeId = "GALEMM";
 
 				SConfig().GetInstance().m_strSubGameID = subGameTypeId;
             }
