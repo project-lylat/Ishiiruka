@@ -149,8 +149,7 @@ std::unique_ptr<SlippiNetplayClient> SlippiMatchmaking::GetNetplayClient()
 
 bool SlippiMatchmaking::IsFixedRulesMode(SlippiMatchmaking::OnlinePlayMode mode)
 {
-	return mode == SlippiMatchmaking::OnlinePlayMode::UNRANKED ||
-		mode == SlippiMatchmaking::OnlinePlayMode::RANKED;
+	return mode == SlippiMatchmaking::OnlinePlayMode::UNRANKED || mode == SlippiMatchmaking::OnlinePlayMode::RANKED;
 }
 
 void SlippiMatchmaking::sendMessage(json msg)
@@ -608,8 +607,8 @@ void SlippiMatchmaking::handleMatchmaking()
 	if (m_allowedStages.empty())
 	{
 		// Default case, shouldn't ever really be hit but it's here just in case
-		m_allowedStages.push_back(0x3); // Pokemon
-		m_allowedStages.push_back(0x8); // Yoshi's Story
+		m_allowedStages.push_back(0x3);  // Pokemon
+		m_allowedStages.push_back(0x8);  // Yoshi's Story
 		m_allowedStages.push_back(0x1C); // Dream Land
 		m_allowedStages.push_back(0x1F); // Battlefield
 		m_allowedStages.push_back(0x20); // Final Destination
