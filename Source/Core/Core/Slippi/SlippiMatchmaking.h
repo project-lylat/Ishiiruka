@@ -58,7 +58,7 @@ class SlippiMatchmaking
 	std::vector<u16> GetStages();
 	u8 RemotePlayerCount();
 	static bool IsFixedRulesMode(OnlinePlayMode mode);
-	static bool IsMexMode(bool isCurrentGameMex, OnlinePlayMode mode);
+	static bool IsMexMode(SlippiUser* user, bool isCurrentGameMex, OnlinePlayMode mode);
 
   protected:
 	const std::string MM_HOST_DEV = "mm2.slippi.gg";
@@ -70,7 +70,7 @@ class SlippiMatchmaking
 
 	ENetHost *m_client;
 	ENetPeer *m_server;
-
+	
 	std::default_random_engine generator;
 
 	bool isMmConnected = false;

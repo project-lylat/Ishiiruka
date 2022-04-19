@@ -38,6 +38,7 @@ class CEXISlippi : public IEXIDevice
 	bool IsPresent() const override;
 	const std::string ERROR_MSG_INVALID_CHAR = "The character you selected is not allowed in this mode";
 	const std::string ERROR_MSG_INVALID_STAGE = "The stage being requested is not allowed in this mode";
+	const std::string ERROR_MSG_MISSING_SLIPPI_INFO = "Link a Slippi account on lylat.gg to play in this mode";
 
   private:
 	enum

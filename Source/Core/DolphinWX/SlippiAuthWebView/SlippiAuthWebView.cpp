@@ -18,10 +18,11 @@
 #include <nlohmann/json.hpp>
 using json = nlohmann::json;
 
-SlippiAuthWebView::SlippiAuthWebView(wxWindow* parent, wxWindowID id, const wxString& title,
+SlippiAuthWebView::SlippiAuthWebView(wxWindow* parent, std::string url, wxWindowID id, const wxString& title,
 	const wxPoint& position, const wxSize& size, long style)
 	: wxDialog(parent, id, title, position, size, style)
 {
+	m_url = url;
 	Bind(wxEVT_CLOSE_WINDOW, &SlippiAuthWebView::OnClose, this);
 	Bind(wxEVT_BUTTON, &SlippiAuthWebView::OnCloseButton, this, wxID_CLOSE);
 	Bind(wxEVT_SHOW, &SlippiAuthWebView::OnShow, this);
@@ -55,7 +56,7 @@ bool SlippiAuthWebView::IsAvailable()
 
 void SlippiAuthWebView::CreateGUIControls()
 {
-    std::string url = "https://slippi.gg/online/enable?isWebview=true";
+    std::string url = m_url;
 
     // On Windows, we need to explicitly force it to elect to use Edge.
     // The other platforms use WebKit, thankfully... which is a one-liner.
@@ -100,7 +101,7 @@ void SlippiAuthWebView::OnCloseButton(wxCommandEvent& WXUNUSED(event))
 void SlippiAuthWebView::OnTitleChanged(wxWebViewEvent& evt)
 {
     wxString title = evt.GetString();
-    wxString prefix("SlippiUser:");
+    wxString prefix("LylatUser:");
 
     // If it's not the first thing, don't grab it.
     if (title.Find(prefix) != 0)

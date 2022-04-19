@@ -157,13 +157,18 @@ bool SlippiUser::AttemptLogin()
 //
 // Windows and Linux don't have reliable WebView components, so this just pops the user over to slippi.gg for those
 // platforms.
+// TODO: change for production
+//#define USER_LOGIN_URL "https://slippi.gg/online/enable"
+//#define USER_LOGIN_URL "http://localhost:3000/users/enable"
+#define USER_LOGIN_URL "https://lylat.gg/users/enable"
+
 void SlippiUser::OpenLogInPage()
 {
 #ifdef __APPLE__
 	CFrame *cframe = wxGetApp().GetCFrame();
-	cframe->OpenSlippiAuthenticationDialog();
+	cframe->OpenSlippiAuthenticationDialog((std::string)USER_LOGIN_URL+"?isWebview=true");
 #else
-	std::string url = "https://slippi.gg/online/enable";
+	std::string url = USER_LOGIN_URL;
 	std::string path = File::GetSlippiUserJSONPath();
 
 #ifdef _WIN32
@@ -187,7 +192,7 @@ void SlippiUser::OpenLogInPage()
 
 bool SlippiUser::UpdateApp()
 {
-#ifdef _WIN32
+#if false//_WIN32
 	auto isoPath = SConfig::GetInstance().m_strFilename;
 
 	std::string path = File::GetExeDirectory() + "/dolphin-slippi-tools.exe";
@@ -207,13 +212,13 @@ bool SlippiUser::UpdateApp()
 	WARN_LOG(SLIPPI, "Executing app update command: %s", command);
 	RunSystemCommand(command);
 	return true;
-#elif defined(__APPLE__)
+#elif false //defined(__APPLE__)
 	CriticalAlertT(
 		"Automatic updates are not available for standalone Netplay builds on macOS. Please get the latest update from slippi.gg/netplay. "
 		"(The Slippi Launcher has automatic updates on macOS, and you should consider switching to that)"
 	);
 	return false;
-#else
+#elif false//
 	const char *appimage_path = getenv("APPIMAGE");
 	const char *appmount_path = getenv("APPDIR");
 	if (!appimage_path)
@@ -229,6 +234,10 @@ bool SlippiUser::UpdateApp()
 	CriticalAlertT("Restart Dolphin to finish the update. If there was an issue, please head over to the Slippi "
 	               "Discord for support.");
 	return true;
+#else
+	CriticalAlertT(
+	    "Automatic updates are not currently available for Lylat. Please get the latest update from https://lylat.gg/download."
+	);
 #endif
 }
 
@@ -267,6 +276,13 @@ SlippiUser::UserInfo SlippiUser::GetUserInfo()
 bool SlippiUser::IsLoggedIn()
 {
 	return isLoggedIn;
+}
+
+bool SlippiUser::HasSlippiInfo()
+{
+	auto key = GetUserInfo().slippi_playKey;
+	auto uid = GetUserInfo().slippi_uid;
+	return !(key.empty() || uid.empty());
 }
 
 void SlippiUser::FileListenThread()
@@ -310,8 +326,16 @@ SlippiUser::UserInfo SlippiUser::parseFile(std::string fileContents)
 	info.displayName = readString(res, "displayName");
 	info.playKey = readString(res, "playKey");
 	info.connectCode = readString(res, "connectCode");
-	info.latestVersion = readString(res, "latestVersion");
-	
+	info.lylatVersion = readString(res, "latestVersion");
+	auto slp = res["slippi"];
+	if(!slp.is_null()) {
+		info.slippi_uid = readString(slp, "uid");
+		info.slippi_playKey = readString(slp, "playKey");
+		info.slippi_connectCode = readString(slp, "connectCode");
+		info.latestVersion = readString(slp, "latestVersion");
+	}
+
+
 	return info;
 }
 
@@ -356,8 +380,15 @@ void SlippiUser::overwriteFromServer()
 	}
 
 	// Overwrite userInfo with data from server
-	auto r = json::parse(resp);
-	userInfo.connectCode = r.value("connectCode", userInfo.connectCode);
-	userInfo.latestVersion = r.value("latestVersion", userInfo.latestVersion);
+	auto r = json::parse(resp, nullptr, false);
 	userInfo.displayName = r.value("displayName", userInfo.displayName);
+	userInfo.lylatVersion = r.value("lylatVersion", userInfo.lylatVersion);
+	auto slp = r["slippi"];
+	if(!slp.is_null()) {
+		userInfo.connectCode = slp.find("connectCode") != slp.end() && !slp["connectCode"].is_null() ? slp.value("connectCode", (std::string) userInfo.connectCode) : "TMP#1234";
+		userInfo.latestVersion = slp.find("latestVersion") != slp.end() && !slp["latestVersion"].is_null() ? slp.value("latestVersion", (std::string) userInfo.latestVersion) : userInfo.lylatVersion;
+	} else {
+		userInfo.connectCode = "TMP#1234";
+		userInfo.latestVersion = userInfo.lylatVersion;
+	}
 }

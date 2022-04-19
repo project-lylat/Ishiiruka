@@ -1996,6 +1996,13 @@ void CEXISlippi::startFindMatch(u8 *payload)
 	SlippiMatchmaking::MatchSearchSettings search;
 	search.mode = (SlippiMatchmaking::OnlinePlayMode)payload[0];
 
+	auto isMex = SConfig::GetInstance().m_gameType == GAMETYPE_MELEE_MEX;
+	auto isCustomMMEnabled = SConfig::GetInstance().m_slippiCustomMMEnabled;
+
+	if(!user->HasSlippiInfo() && (search.mode != SlippiMatchmaking::UNRANKED)) {
+		forcedError = ERROR_MSG_MISSING_SLIPPI_INFO;
+		return;
+	}
 	std::string shiftJisCode;
 	shiftJisCode.insert(shiftJisCode.begin(), &payload[1], &payload[1] + 18);
 	shiftJisCode.erase(std::find(shiftJisCode.begin(), shiftJisCode.end(), 0x00), shiftJisCode.end());
@@ -2020,9 +2027,6 @@ void CEXISlippi::startFindMatch(u8 *payload)
 
 	// Store this search so we know what was queued for
 	lastSearch = search;
-
-	auto isMex = SConfig::GetInstance().m_gameType == GAMETYPE_MELEE_MEX;
-	auto isCustomMMEnabled = SConfig::GetInstance().m_slippiCustomMMEnabled;
 
 	// While we do have another condition that checks characters after being connected, it's nice to give
 	// someone an early error before they even queue so that they wont enter the queue and make someone
@@ -2997,9 +3001,10 @@ void CEXISlippi::prepareOnlineStatus()
 	{
 		// Check if we have the latest version, and if not, indicate we need to update
 		version::Semver200_version latestVersion(userInfo.latestVersion);
+		version::Semver200_version lylatVersion(userInfo.lylatVersion);
 		version::Semver200_version currentVersion(scm_slippi_semver_str);
 
-		appState = latestVersion > currentVersion ? 2 : 1;
+		appState = (latestVersion > currentVersion || lylatVersion > currentVersion) ? 2 : 1;
 		// TODO: we need to handle proper lylat updates when there's enough bandwidth, for now
 		// TODO: Only match users that are using the same version on the mm server so the app can still be used
 		// TODO: fix black screen when there's a required update (lylat-ssbm-asm)
