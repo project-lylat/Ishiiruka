@@ -238,6 +238,7 @@ bool SlippiUser::UpdateApp()
 	CriticalAlertT(
 	    "Automatic updates are not currently available for Lylat. Please get the latest update from https://lylat.gg/download."
 	);
+	return true;
 #endif
 }
 
