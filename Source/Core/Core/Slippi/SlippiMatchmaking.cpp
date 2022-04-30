@@ -103,7 +103,7 @@ bool SlippiMatchmaking::IsMexMode(SlippiUser* user, bool isCurrentGameMex, Onlin
 		return true;
 
 	// Always route recognized mods through Lylat
-    if (SConfig::GetInstance().m_strSubGameID != "GALE01")
+	if (SConfig::GetInstance().m_strSubGameID != "GALE01")
         return true;
 
 	if (!isCurrentGameMex)
