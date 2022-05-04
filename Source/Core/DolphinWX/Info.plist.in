@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleExecutable</key>
-	<string>Lylat Dolphin</string>
+	<string>Slippi Dolphin</string>
 	<key>CFBundleName</key>
 	<string>Lylat Dolphin</string>
 	<key>CFBundleDisplayName</key>
