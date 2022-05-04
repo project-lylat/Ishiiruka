@@ -84,7 +84,7 @@ std::string SlippiMatchmaking::getMexMMHost()
  */
 std::string SlippiMatchmaking::getMMHostForSearchMode()
 {
-	bool isMexMode = SlippiMatchmaking::IsMexMode(this->isMex, this->m_searchSettings.mode);
+	bool isMexMode = SlippiMatchmaking::IsMexMode(this->m_user, this->isMex, this->m_searchSettings.mode);
 	return isMexMode ? getMexMMHost() : getSlippiMMHost();
 }
 
@@ -95,8 +95,14 @@ std::string SlippiMatchmaking::getMMHostForSearchMode()
  * @param mode
  * @return false if the mode should go through Slippi Servers
  */
-bool SlippiMatchmaking::IsMexMode(bool isCurrentGameMex, OnlinePlayMode mode)
+bool SlippiMatchmaking::IsMexMode(SlippiUser* user, bool isCurrentGameMex, OnlinePlayMode mode)
 {
+
+	// If the current user account is not connected to Slippi then route through lylat:
+	if(!user->HasSlippiInfo()){
+		return true;
+	}
+
 	if (!isCurrentGameMex)
 		return false;
 
@@ -422,12 +428,16 @@ void SlippiMatchmaking::startMatchmaking()
 	connectCodeBuf.insert(connectCodeBuf.end(), m_searchSettings.connectCode.begin(),
 	                      m_searchSettings.connectCode.end());
 
+	// TODO: everything that's not unranked will be routed through slippi
+	bool isSlippiMode = m_searchSettings.mode != SlippiMatchmaking::OnlinePlayMode::UNRANKED ||
+	                    (!isMex && m_searchSettings.mode == SlippiMatchmaking::OnlinePlayMode::UNRANKED && m_user->HasSlippiInfo());
+
 	// Send message to server to create ticket
 	json request;
 	request["type"] = MmMessageType::CREATE_TICKET;
-	request["user"] = {{"uid", userInfo.uid},
-	                   {"playKey", userInfo.playKey},
-	                   {"connectCode", userInfo.connectCode},
+	request["user"] = {{"uid", isSlippiMode ? userInfo.slippi_uid : userInfo.uid},
+	                   {"playKey", isSlippiMode ? userInfo.slippi_playKey : userInfo.playKey},
+	                   {"connectCode", isSlippiMode ? userInfo.slippi_connectCode : userInfo.connectCode},
 	                   {"displayName", userInfo.displayName}};
 	request["search"] = {
 	        {"mode", m_searchSettings.mode},

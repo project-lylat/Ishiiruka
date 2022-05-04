@@ -6,6 +6,7 @@ Thumbs.db
 Source/Core/Common/scmrev.h
 # Ignore files output by build
 /[Bb]uild*/
+/cmake-build*/
 /[Bb]inary/
 /obj/
 # Android cmake builds to here then copies to Source/Android.

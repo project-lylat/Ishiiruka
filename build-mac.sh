@@ -29,7 +29,7 @@ fi
 mkdir -p build
 pushd build
 cmake ${CMAKE_FLAGS} ..
-make -j7
+make -j
 popd
 
 # Copy the Sys folder in

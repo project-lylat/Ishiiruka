@@ -275,7 +275,7 @@ void CFrame::OpenGeneralConfiguration(wxWindowID tab_id)
 // Actually create and show the wxWebView control.
 void CFrame::ShowSlippiAuthenticationDialog()
 {
-    m_slippi_auth_dialog = new SlippiAuthWebView(this);
+    m_slippi_auth_dialog = new SlippiAuthWebView(this, m_slippi_auth_dialog_url);
     m_slippi_auth_dialog->Show();
     m_slippi_auth_dialog->SetFocus();
 }
@@ -283,8 +283,9 @@ void CFrame::ShowSlippiAuthenticationDialog()
 // This is the entry point for our webview dialog. `CallAfter` is used
 // as the call could come from a background thread, and `wxWebView` needs to
 // be instantiated on the main thread, which this does.
-void CFrame::OpenSlippiAuthenticationDialog()
+void CFrame::OpenSlippiAuthenticationDialog(std::string url)
 {
+	m_slippi_auth_dialog_url = url;
     CallAfter(&CFrame::ShowSlippiAuthenticationDialog);
 }
 #endif

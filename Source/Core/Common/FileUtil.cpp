@@ -726,10 +726,9 @@ std::string GetApplicationSupportDirectory()
 {
 	std::string dir = File::GetHomeDirectory() + "/Library/Application Support/com.project-slippi.dolphin";
 
-	if (!CreateDir(dir))
-	{
-		ERROR_LOG(COMMON, "Unable to create Application Support directory: %s:", dir.c_str());
-	}
+	if(!CreateDir(dir)) {
+        ERROR_LOG(COMMON, "Unable to create Application Support directory: %s:", dir.c_str());
+    }
 
 	return dir;
 }
@@ -804,15 +803,15 @@ std::string GetSysDirectory()
 	return sysDir;
 }
 
-// On Linux platforms, the user.json file lives in the XDG_CONFIG_HOME/SlippiOnline
+// On Linux platforms, the lylat.json file lives in the XDG_CONFIG_HOME/SlippiOnline
 // directory in order to deal with the fact that we want the configuration for AppImage
 // builds to be mutable.
 std::string GetSlippiUserJSONPath()
 {
 #if defined(__APPLE__)
-	std::string userFilePath = File::GetApplicationSupportDirectory() + "/Slippi/user.json";
+    std::string userFilePath = File::GetApplicationSupportDirectory() + "/Slippi/lylat.json";
 #elif defined(_WIN32)
-	std::string userFilePath = File::GetExeDirectory() + DIR_SEP + "user.json";
+	std::string userFilePath = File::GetExeDirectory() + DIR_SEP + "lylat.json";
 #else
 	std::string userFilePath = File::GetUserPath(F_USERJSON_IDX);
 #endif
@@ -859,7 +858,7 @@ static void RebuildUserDirectories(unsigned int dir_index)
 		s_user_paths[F_FAKEVMEMDUMP_IDX] = s_user_paths[D_DUMP_IDX] + FAKEVMEM_DUMP;
 		s_user_paths[F_GCSRAM_IDX] = s_user_paths[D_GCUSER_IDX] + GC_SRAM;
 		s_user_paths[F_WIISDCARD_IDX] = s_user_paths[D_WIIROOT_IDX] + DIR_SEP WII_SDCARD;
-		s_user_paths[F_USERJSON_IDX] = s_user_paths[D_SLIPPI_IDX] + USER_JSON;
+		s_user_paths[F_USERJSON_IDX] = s_user_paths[D_USER_IDX] + "lylat.json";
 
 		s_user_paths[D_MEMORYWATCHER_IDX] = s_user_paths[D_USER_IDX] + MEMORYWATCHER_DIR DIR_SEP;
 		s_user_paths[F_MEMORYWATCHERLOCATIONS_IDX] = s_user_paths[D_MEMORYWATCHER_IDX] + MEMORYWATCHER_LOCATIONS;

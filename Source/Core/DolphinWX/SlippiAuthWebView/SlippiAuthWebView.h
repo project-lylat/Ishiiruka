@@ -8,8 +8,8 @@
 class SlippiAuthWebView : public wxDialog
 {
 public:
-	SlippiAuthWebView(wxWindow* parent, wxWindowID id = wxID_ANY,
-		const wxString& title = _("Sign In to Slippi"),
+	SlippiAuthWebView(wxWindow* parent, std::string url, wxWindowID id = wxID_ANY,
+		const wxString& title = _("Sign In to Lylat"),
 		const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxDefaultSize,
 		long style = wxDEFAULT_DIALOG_STYLE);
 	virtual ~SlippiAuthWebView();
@@ -24,5 +24,6 @@ private:
 	void OnShow(wxShowEvent& event);
 
     wxWebView* m_browser;
+	std::string m_url;
 };
 #endif

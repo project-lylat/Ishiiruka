@@ -18,7 +18,13 @@ class SlippiUser
 		std::string displayName = "";
 		std::string connectCode = "";
 		std::string latestVersion = "";
+		std::string lylatVersion = "";
 		std::string fileContents = "";
+
+		std::string slippi_uid = "";
+		std::string slippi_playKey = "";
+		std::string slippi_connectCode = "";
+
 
 		int port;
 	};
@@ -35,6 +41,8 @@ class SlippiUser
 	UserInfo GetUserInfo();
 	bool IsLoggedIn();
 	void FileListenThread();
+	bool HasSlippiInfo();
+
 
   protected:
 	UserInfo parseFile(std::string fileContents);
@@ -44,7 +52,12 @@ class SlippiUser
 	UserInfo userInfo;
 	bool isLoggedIn = false;
 
-	const std::string URL_START = "https://users-rest-dot-slippi.uc.r.appspot.com/user";
+	// TODO: use production lylat route
+//	const std::string URL_START = "https://lylat.gg/users";
+//	const std::string URL_START = "http://localhost:3000/users/slp";
+//	const std::string URL_START = "https://users-rest-dot-slippi.uc.r.appspot.com/user";
+	const std::string URL_START = "https://lylat.gg/users/slp";
+
 	CURL *m_curl = nullptr;
 	struct curl_slist *m_curlHeaderList = nullptr;
 	std::vector<char> receiveBuf;

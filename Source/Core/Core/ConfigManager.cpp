@@ -965,21 +965,21 @@ bool SConfig::AutoSetup(EBootBS2 _BootBS2)
 
 				// Set subgame to vanilla by default
 				std::string subGameTypeId = "GALE01";
-                m_strGameLongName = SConfig().GetInstance().m_strGameLongName = pVolume->GetLongNames()[DiscIO::Language::LANGUAGE_ENGLISH];
+				m_strGameLongName = SConfig().GetInstance().m_strGameLongName =
+				    pVolume->GetLongNames()[DiscIO::Language::LANGUAGE_ENGLISH];
 
 				// Set subgame type id based on disc name
-                if (m_strGameLongName.find("Akaneia") !=
-                         std::string::npos)
-                    subGameTypeId = "GALEAB";
-                else if (m_strGameLongName.find("Beyond") !=
-                         std::string::npos)
-                    subGameTypeId = "GALEBM";
-                else if (m_strGameLongName.find("Midnight") !=
-                         std::string::npos)
-                    subGameTypeId = "GALEMM";
+				if (m_strGameLongName.find("Akaneia") != std::string::npos)
+					subGameTypeId = "GALEAB";
+				else if (m_strGameLongName.find("Beyond") != std::string::npos)
+					subGameTypeId = "GALEBM";
+				else if (m_strGameLongName.find("Midnight") != std::string::npos)
+					subGameTypeId = "GALEMM";
+				else if (m_strGameLongName.find("1.03") != std::string::npos)
+					subGameTypeId = "GALE03";
 
 				SConfig().GetInstance().m_strSubGameID = subGameTypeId;
-            }
+			}
 			else if (m_strGameID == "GTME01")
 			{
 				m_gameType = GAMETYPE_MELEE_UPTM;
@@ -1280,9 +1280,9 @@ IniFile SConfig::LoadGameIni() const
 bool SConfig::GameHasDefaultGameIni(const std::string &id, u16 revision)
 {
 	const std::vector<std::string> filenames = GetGameIniFilenames(id, revision);
-	return std::any_of(filenames.begin(), filenames.end(), [](const std::string &filename) {
-		return File::Exists(File::GetSysDirectory() + GAMESETTINGS_DIR DIR_SEP + filename);
-	});
+	return std::any_of(filenames.begin(), filenames.end(),
+	                   [](const std::string &filename)
+	                   { return File::Exists(File::GetSysDirectory() + GAMESETTINGS_DIR DIR_SEP + filename); });
 }
 
 IniFile SConfig::LoadDefaultGameIni(const std::string &id, u16 revision)

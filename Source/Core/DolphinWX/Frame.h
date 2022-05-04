@@ -123,7 +123,7 @@ public:
 	void ToggleScreenSaver(bool enable);
 
 #ifdef __APPLE__
-    void OpenSlippiAuthenticationDialog();
+    void OpenSlippiAuthenticationDialog(std::string url);
 #endif
 
 	static void ConnectWiimote(int wm_idx, bool connect);
@@ -164,6 +164,7 @@ private:
 
 #ifdef __APPLE__
     SlippiAuthWebView* m_slippi_auth_dialog = nullptr;
+	std::string m_slippi_auth_dialog_url;
 #endif
 
 	wxPanel* m_Panel = nullptr;
