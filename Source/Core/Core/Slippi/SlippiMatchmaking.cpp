@@ -98,10 +98,13 @@ std::string SlippiMatchmaking::getMMHostForSearchMode()
 bool SlippiMatchmaking::IsMexMode(SlippiUser* user, bool isCurrentGameMex, OnlinePlayMode mode)
 {
 
-	// If the current user account is not connected to Slippi then route through lylat:
-	if(!user->HasSlippiInfo()){
+	// If the current user account is not connected to Slippi then route through Lylat
+	if (!user->HasSlippiInfo())
 		return true;
-	}
+
+	// Always route recognized mods through Lylat
+	if (SConfig::GetInstance().m_strSubGameID != "GALE01")
+        return true;
 
 	if (!isCurrentGameMex)
 		return false;
@@ -429,8 +432,7 @@ void SlippiMatchmaking::startMatchmaking()
 	                      m_searchSettings.connectCode.end());
 
 	// TODO: everything that's not unranked will be routed through slippi
-	bool isSlippiMode = m_searchSettings.mode != SlippiMatchmaking::OnlinePlayMode::UNRANKED ||
-	                    (!isMex && m_searchSettings.mode == SlippiMatchmaking::OnlinePlayMode::UNRANKED && m_user->HasSlippiInfo());
+	bool isSlippiMode = IsMexMode(m_user, isMex, m_searchSettings.mode);
 
 	// Send message to server to create ticket
 	json request;
