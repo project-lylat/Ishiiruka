@@ -24,7 +24,7 @@ jobs:
           find ./ -mindepth 2 -type f -exec mv -t ./ -i '{}' +
           find . -type d -empty -delete
           unzip *linux* && rm -rf Sys && mv *linux* "FM-Lylat-${{ env.VERSION }}-Linux.zip"
-          mv *macOS* "FM-Lylat-${{ env.VERSION }}-Mac.zip"
+          mv *macOS* "FM-Lylat-${{ env.VERSION }}-Mac.dmg"
           mv *windows* "FM-Lylat-${{ env.VERSION }}-Win.zip"
       - name: Upload binaries to release
         uses: svenstaro/upload-release-action@v2
