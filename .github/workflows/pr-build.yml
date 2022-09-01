@@ -43,9 +43,6 @@ jobs:
     steps:
       - name: "Checkout"
         uses: actions/checkout@v2
-      - name: "Setup Go"
-        uses: actions/setup-go@v2
-        if: matrix.build_type == 'Netplay'
       - name: "Remove Redistributable"
         shell: cmd
         run: |
@@ -82,17 +79,6 @@ jobs:
         shell: cmd
         run: |
           msbuild /p:Configuration=${{ matrix.build_config }} /p:Platform=x64 ${{ github.workspace }}\Source\Dolphin.sln
-#      - name: "Build Netplay Updater"
-#        working-directory: ${{ github.workspace }}
-#        shell: cmd
-#        if: matrix.build_type == 'Netplay'
-#        run: |
-#          cd %GOPATH%
-#          git clone https://github.com/project-slippi/dolphin-slippi-tools
-#          cd dolphin-slippi-tools
-#          go get github.com/gonutz/w32 github.com/machinebox/graphql golang.org/x/sys/windows/registry
-#          go build
-#          copy /b /v /y dolphin-slippi-tools.exe ${{ github.workspace }}\Binary\x64\
       - name: "Prepare Artifact"
         working-directory: ${{ github.workspace }}
         run: |
@@ -121,7 +107,7 @@ jobs:
         with:
           name: ${{ matrix.artifact_name }}
           path: "./artifact/"
-
+  
   linux:
     needs: skip_duplicates
     if: ${{ needs.skip_duplicates.outputs.should_skip != 'true' }}
@@ -219,7 +205,7 @@ jobs:
         with:
           name: ${{ matrix.artifact_name }}
           path: "./artifact/"
-
+  
   macOS:
     needs: skip_duplicates
     if: ${{ needs.skip_duplicates.outputs.should_skip != 'true' }}
@@ -265,7 +251,6 @@ jobs:
           brew install \
           ffmpeg@2.8 \
           libpng \
-          libav \
           pkgconfig \
           libao \
           sound-touch \
