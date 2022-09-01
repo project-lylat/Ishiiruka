@@ -3007,7 +3007,10 @@ void CEXISlippi::prepareOnlineStatus()
 		version::Semver200_version lylatVersion(userInfo.lylatVersion);
 		version::Semver200_version currentVersion(scm_slippi_semver_str);
 
-		appState = (latestVersion > currentVersion || lylatVersion > currentVersion) ? 2 : 1;
+		std::string subGameID = SConfig::GetInstance().m_strSubGameID;
+
+		// Only require update if slippi versions mismatch
+		appState = ((latestVersion > currentVersion && subGameID == "GALE01") || lylatVersion > currentVersion) ? 2 : 1;
 		// TODO: we need to handle proper lylat updates when there's enough bandwidth, for now
 		// TODO: Only match users that are using the same version on the mm server so the app can still be used
 		// TODO: fix black screen when there's a required update (lylat-ssbm-asm)
