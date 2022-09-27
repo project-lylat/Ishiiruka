@@ -2025,7 +2025,7 @@ void CEXISlippi::startFindMatch(u8 *payload)
 	}
 
 	// TODO: Make this work so we dont have to pass shiftJis to mm server
-	// search.connectCode = SHIFTJISToUTF8(shiftJisCode).c_str();
+//	search.connectCode = SHIFTJISToUTF8(shiftJisCode).c_str();
 	search.connectCode = shiftJisCode;
 
 	// Store this search so we know what was queued for

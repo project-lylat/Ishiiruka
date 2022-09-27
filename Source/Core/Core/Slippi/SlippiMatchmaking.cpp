@@ -102,16 +102,20 @@ bool SlippiMatchmaking::IsMexMode(SlippiUser* user, bool isCurrentGameMex, Onlin
 	if (!user->HasSlippiInfo())
 		return true;
 
-    std::string subGameID = SConfig::GetInstance().m_strSubGameID;
+	std::string subGameID = SConfig::GetInstance().m_strSubGameID;
 
 	switch (mode)
 	{
-	case OnlinePlayMode::UNRANKED:
 	case OnlinePlayMode::RANKED:
-        if (subGameID != "GALE01") return true; // always be on Mex mode if not GALE01
-        if (!isCurrentGameMex) return false;
+	case OnlinePlayMode::UNRANKED:
+	case OnlinePlayMode::DIRECT:
+	case OnlinePlayMode::TEAMS:
+		if (subGameID != "GALE01")
+			return true; // always be on Mex mode if not GALE01
+		if (!isCurrentGameMex)
+			return false;
 
-        return true;
+		return true;
 	default:
 		return false;
 	}
@@ -211,6 +215,8 @@ int SlippiMatchmaking::receiveMessage(json &msg, int timeoutMs)
 
 	return -1;
 }
+
+#include <iostream>
 
 void SlippiMatchmaking::MatchmakeThread()
 {
@@ -430,8 +436,9 @@ void SlippiMatchmaking::startMatchmaking()
 	                      m_searchSettings.connectCode.end());
 
 	// TODO: everything that's not unranked will be routed through slippi
-    bool isSlippiMode = m_searchSettings.mode != SlippiMatchmaking::OnlinePlayMode::UNRANKED ||
-                        (!isMex && m_searchSettings.mode == SlippiMatchmaking::OnlinePlayMode::UNRANKED && m_user->HasSlippiInfo());
+	bool isSlippiMode =
+	    m_searchSettings.mode != SlippiMatchmaking::OnlinePlayMode::UNRANKED ||
+	    (!isMex && m_searchSettings.mode == SlippiMatchmaking::OnlinePlayMode::UNRANKED && m_user->HasSlippiInfo());
 
 	// Send message to server to create ticket
 	json request;
@@ -440,17 +447,16 @@ void SlippiMatchmaking::startMatchmaking()
 	                   {"playKey", isSlippiMode ? userInfo.slippi_playKey : userInfo.playKey},
 	                   {"connectCode", isSlippiMode ? userInfo.slippi_connectCode : userInfo.connectCode},
 	                   {"displayName", userInfo.displayName}};
-	request["search"] = {
-	        {"mode", m_searchSettings.mode},
-	        {"connectCode", connectCodeBuf},
-	        {"game", {
-                {"id", SConfig::GetInstance().m_strGameID},
-                {"ex_id", SConfig::GetInstance().m_strSubGameID},
-	            {"revision", SConfig::GetInstance().m_revision},
-                {"type", SConfig::GetInstance().m_gameType},
-                {"name", SConfig::GetInstance().m_strGameLongName},
-	        }}
-	};
+	request["search"] = {{"mode", m_searchSettings.mode},
+	                     {"connectCode", SHIFTJISToUTF8(m_searchSettings.connectCode).c_str()},
+	                     {"game",
+	                      {
+	                          {"id", SConfig::GetInstance().m_strGameID},
+	                          {"ex_id", SConfig::GetInstance().m_strSubGameID},
+	                          {"revision", SConfig::GetInstance().m_revision},
+	                          {"type", SConfig::GetInstance().m_gameType},
+	                          {"name", SConfig::GetInstance().m_strGameLongName},
+	                      }}};
 	request["appVersion"] = scm_slippi_semver_str;
 	request["ipAddressLan"] = lanAddr;
 	sendMessage(request);
