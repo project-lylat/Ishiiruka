@@ -13,6 +13,7 @@
 #include "Common/NonCopyable.h"
 #include "Core/HW/EXI_Device.h"
 #include "Core/HW/SI_Device.h"
+#include "Core/Lylat/Lylat.h"
 
 #include "DiscIO/Filesystem.h"
 
@@ -164,8 +165,8 @@ struct SConfig : NonCopyable
 	int m_slippiNetplayPort;
 	bool m_slippiForceLanIp = false;
 	bool m_slippiCustomMMEnabled = true;
-	std::string m_slippiCustomMMServerURL = "165.227.213.180";
-	std::string m_slippiCustomMMReportingURL = "https://lylat.gg/reports";
+	std::string m_slippiCustomMMServerURL = Lylat::HOSTNAME;
+	std::string m_slippiCustomMMReportingURL = Lylat::GAME_REPORT_URL;
 	std::string m_slippiLanIp = "";
 	bool m_meleeUserIniBootstrapped = false;
 	bool m_blockingPipes = false;

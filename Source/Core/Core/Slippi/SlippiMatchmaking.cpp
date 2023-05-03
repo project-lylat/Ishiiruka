@@ -60,7 +60,7 @@ std::string SlippiMatchmaking::getSlippiMMHost()
 {
 	auto prodUrl = MM_HOST_PROD;
 	auto devUrl = MM_HOST_DEV;
-	return scm_slippi_semver_str.find("dev") == std::string::npos ? prodUrl : devUrl;
+	return isDev() ? devUrl : prodUrl;
 }
 
 /**
@@ -71,8 +71,11 @@ std::string SlippiMatchmaking::getSlippiMMHost()
 std::string SlippiMatchmaking::getMexMMHost()
 {
 	auto prodUrl = SConfig::GetInstance().m_slippiCustomMMServerURL;
-	auto devUrl = MM_HOST_DEV;
-	return scm_slippi_semver_str.find("dev") == std::string::npos ? prodUrl : devUrl;
+#ifdef LYLAT_STAGING
+	prodUrl = Lylat::LYLAT_STAGING_MATCHMAKING_URL;
+#endif
+	auto devUrl = Lylat::LYLAT_STAGING_MATCHMAKING_URL;
+	return isDev() ? devUrl : prodUrl;
 }
 
 /**

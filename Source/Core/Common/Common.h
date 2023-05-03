@@ -102,3 +102,17 @@ enum EMUSTATE_CHANGE
 	EMUSTATE_CHANGE_PAUSE,
 	EMUSTATE_CHANGE_STOP
 };
+
+
+extern inline bool isDev() {
+	return scm_slippi_semver_str.find("dev") != std::string::npos;
+}
+
+extern inline bool isBeta() {
+	return scm_slippi_semver_str.find("beta") != std::string::npos;
+}
+
+extern inline bool isProduction() {
+	return !isDev() && !isBeta();
+}
+

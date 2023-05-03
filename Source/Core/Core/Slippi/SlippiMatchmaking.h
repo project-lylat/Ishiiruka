@@ -2,17 +2,18 @@
 
 #include "Common/CommonTypes.h"
 #include "Common/Thread.h"
+#include "Core/Lylat/Lylat.h"
 #include "Core/Slippi/SlippiNetplay.h"
 #include "Core/Slippi/SlippiUser.h"
 
 #ifndef _WIN32
-#include <netdb.h>
 #include <arpa/inet.h>
+#include <netdb.h>
 #endif
 
+#include <json.hpp>
 #include <unordered_map>
 #include <vector>
-#include <json.hpp>
 
 using json = nlohmann::json;
 
@@ -58,11 +59,11 @@ class SlippiMatchmaking
 	std::vector<u16> GetStages();
 	u8 RemotePlayerCount();
 	static bool IsFixedRulesMode(OnlinePlayMode mode);
-	static bool IsMexMode(SlippiUser* user, bool isCurrentGameMex, OnlinePlayMode mode);
+	static bool IsMexMode(SlippiUser *user, bool isCurrentGameMex, OnlinePlayMode mode);
 
   protected:
-	const std::string MM_HOST_DEV = "mm2.slippi.gg";
-	const std::string MM_HOST_PROD = "mm.slippi.gg";
+	const std::string MM_HOST_DEV = Lylat::SLIPPI_DEV_MATCHMAKING_URL;
+	const std::string MM_HOST_PROD = Lylat::SLIPPI_MATCHMAKING_URL;
 	const u16 MM_PORT = 43113;
 
 	std::string MM_HOST = "";
@@ -70,7 +71,7 @@ class SlippiMatchmaking
 
 	ENetHost *m_client;
 	ENetPeer *m_server;
-	
+
 	std::default_random_engine generator;
 
 	bool isMmConnected = false;

@@ -146,6 +146,8 @@ bool SlippiUser::AttemptLogin()
 	{
 		overwriteFromServer();
 		WARN_LOG(SLIPPI_ONLINE, "Found user %s (%s)", userInfo.displayName.c_str(), userInfo.uid.c_str());
+	} else {
+		WARN_LOG(SLIPPI_ONLINE, "User file not valid or UID is empty!");
 	}
 
 	return isLoggedIn;
@@ -157,10 +159,7 @@ bool SlippiUser::AttemptLogin()
 //
 // Windows and Linux don't have reliable WebView components, so this just pops the user over to slippi.gg for those
 // platforms.
-// TODO: change for production
-//#define USER_LOGIN_URL "https://slippi.gg/online/enable"
-//#define USER_LOGIN_URL "http://localhost:3000/users/enable"
-#define USER_LOGIN_URL "https://lylat.gg/users/enable"
+#define USER_LOGIN_URL Lylat::USER_LOGIN_URL
 
 void SlippiUser::OpenLogInPage()
 {
@@ -352,8 +351,8 @@ void SlippiUser::overwriteFromServer()
 		return;
 
 	// Generate URL. If this is a beta version, use the beta endpoint
-	std::string url = URL_START;
-	if (scm_slippi_semver_str.find("beta") != std::string::npos)
+	std::string url = Lylat::USER_JSON_URL;
+	if (isBeta())
 	{
 		url = url + "-beta";
 	}

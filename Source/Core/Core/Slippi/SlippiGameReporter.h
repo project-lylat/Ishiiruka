@@ -2,6 +2,7 @@
 
 #include "Common/CommonTypes.h"
 #include "Common/FifoQueue.h"
+#include "Core/Lylat/Lylat.h"
 #include "Core/Slippi/SlippiUser.h"
 #include "SlippiMatchmaking.h"
 
@@ -13,8 +14,6 @@
 #include <thread>
 #include <vector>
 
-#define SLIPPI_REPORT_URL "https://rankings-dot-slippi.uc.r.appspot.com/report"
-
 class SlippiGameReporter
 {
   public:
@@ -25,7 +24,7 @@ class SlippiGameReporter
 	};
 	struct GameReport
 	{
-        SlippiMatchmaking::OnlinePlayMode mode = SlippiMatchmaking::OnlinePlayMode::UNRANKED;
+		SlippiMatchmaking::OnlinePlayMode mode = SlippiMatchmaking::OnlinePlayMode::UNRANKED;
 		u32 durationFrames = 0;
 		std::vector<PlayerReport> players;
 	};
@@ -38,7 +37,7 @@ class SlippiGameReporter
 	void ReportThreadHandler();
 
   protected:
-	std::string reportUrl = SLIPPI_REPORT_URL;
+	std::string reportUrl = Lylat::SLIPPI_GAME_REPORT_URL;
 	CURL *m_curl = nullptr;
 	struct curl_slist *m_curlHeaderList = nullptr;
 	bool isMex = false;

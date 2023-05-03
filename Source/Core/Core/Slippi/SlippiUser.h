@@ -7,6 +7,7 @@
 #include <thread>
 #include <unordered_map>
 #include <vector>
+#include "Core/Lylat/Lylat.h"
 
 class SlippiUser
 {
@@ -51,12 +52,6 @@ class SlippiUser
 
 	UserInfo userInfo;
 	bool isLoggedIn = false;
-
-	// TODO: use production lylat route
-//	const std::string URL_START = "https://lylat.gg/users";
-//	const std::string URL_START = "http://localhost:3000/users/slp";
-//	const std::string URL_START = "https://users-rest-dot-slippi.uc.r.appspot.com/user";
-	const std::string URL_START = "https://lylat.gg/users/slp";
 
 	CURL *m_curl = nullptr;
 	struct curl_slist *m_curlHeaderList = nullptr;

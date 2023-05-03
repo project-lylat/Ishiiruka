@@ -18,6 +18,7 @@
 #include "Common/CommonTypes.h"
 #include "Common/FileUtil.h"
 #include "Common/Logging/Log.h"
+#include "Core/Lylat/Lylat.h"
 
 #ifdef _WIN32
 #include <ShlObj.h>
@@ -808,6 +809,9 @@ std::string GetSysDirectory()
 // builds to be mutable.
 std::string GetSlippiUserJSONPath()
 {
+#if defined(LYLAT_STAGING) || defined(LYLAT_DEV)
+	std::string userFilePath = File::GetUserPath(F_USERJSON_IDX);
+#else
 #if defined(__APPLE__)
     std::string userFilePath = File::GetApplicationSupportDirectory() + "/Slippi/lylat.json";
 #elif defined(_WIN32)
@@ -815,6 +819,8 @@ std::string GetSlippiUserJSONPath()
 #else
 	std::string userFilePath = File::GetUserPath(F_USERJSON_IDX);
 #endif
+#endif
+
 	return userFilePath;
 }
 

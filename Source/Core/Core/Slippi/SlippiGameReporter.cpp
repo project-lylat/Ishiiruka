@@ -9,6 +9,7 @@
 
 #include "Common/Common.h"
 #include "Core/ConfigManager.h"
+#include "Core/Lylat/Lylat.h"
 
 #include <codecvt>
 #include <locale>
@@ -31,7 +32,7 @@ static size_t receive(char *ptr, size_t size, size_t nmemb, void *rcvBuf)
 SlippiGameReporter::SlippiGameReporter(SlippiUser *user, bool isMex)
 {
 	this->isMex = SConfig::GetInstance().m_slippiCustomMMEnabled && isMex;
-	this->reportUrl = SLIPPI_REPORT_URL;
+	this->reportUrl = Lylat::SLIPPI_GAME_REPORT_URL;
 
 	CURL *curl = curl_easy_init();
 	if (curl)
@@ -126,7 +127,16 @@ void SlippiGameReporter::ReportThreadHandler()
 			auto requestString = request.dump();
 
 			bool isMexMode = SlippiMatchmaking::IsMexMode(this->m_user, this->isMex, report.mode);
-			std::string effectiveUrl = isMexMode ? SConfig::GetInstance().m_slippiCustomMMReportingURL : this->reportUrl;
+
+			std::string effectiveUrl = this->reportUrl;
+			if (isMexMode)
+			{
+				effectiveUrl = SConfig::GetInstance().m_slippiCustomMMReportingURL;
+#ifdef LYLAT_STAGING
+				effectiveUrl = Lylat::GAME_REPORT_URL;
+#endif
+			}
+
 			// ERROR_LOG(SLIPPI_ONLINE, "[GameReport] REPORT_URL: %s", effectiveUrl.c_str());
 
 			// Send report
