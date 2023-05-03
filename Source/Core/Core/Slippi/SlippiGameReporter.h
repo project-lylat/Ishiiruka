@@ -48,8 +48,8 @@ class SlippiGameReporter
 	~SlippiGameReporter();
 
 	void StartReport(GameReport report);
-	void ReportAbandonment(std::string matchId);
-	void ReportCompletion(std::string matchId, u8 endMode);
+	void ReportAbandonment(std::string matchId, SlippiMatchmaking::OnlinePlayMode mode);
+	void ReportCompletion(std::string matchId, u8 endMode, SlippiMatchmaking::OnlinePlayMode mode);
 	void StartNewSession();
 	void ReportThreadHandler();
 	void PushReplayData(u8 *data, u32 length, std::string action);
@@ -57,8 +57,8 @@ class SlippiGameReporter
 
   protected:
 	const std::string REPORT_URL = Lylat::SLIPPI_GAME_REPORT_URL;
-	const std::string ABANDON_URL = "https://rankings-dot-slippi.uc.r.appspot.com/abandon";
-	const std::string COMPLETE_URL = "https://rankings-dot-slippi.uc.r.appspot.com/complete";
+	const std::string ABANDON_URL = Lylat::SLIPPI_ABANDON_GAME_REPORT_URL;
+	const std::string COMPLETE_URL = Lylat::SLIPPI_COMPLETE_GAME_REPORT_URL;
 	CURL *m_curl = nullptr;
 	struct curl_slist *m_curlHeaderList = nullptr;
 	bool isMex = false;

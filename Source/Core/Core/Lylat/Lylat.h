@@ -15,13 +15,14 @@
 #define LYLAT_PRODUCTION
 #endif
 
-
 class Lylat
 {
   public:
 	static const inline std::string SLIPPI_HOSTNAME = "https://slippi.gg";
 	static const inline std::string SLIPPI_USER_JSON_URL = "https://users-rest-dot-slippi.uc.r.appspot.com/user";
 	static const inline std::string SLIPPI_GAME_REPORT_URL = "https://rankings-dot-slippi.uc.r.appspot.com/report";
+	static const inline std::string SLIPPI_ABANDON_GAME_REPORT_URL = "https://rankings-dot-slippi.uc.r.appspot.com/abandon";
+	static const inline std::string SLIPPI_COMPLETE_GAME_REPORT_URL = "https://rankings-dot-slippi.uc.r.appspot.com/complete";
 	static const inline std::string SLIPPI_USER_LOGIN_URL = SLIPPI_HOSTNAME + "/online/enable";
 	static const inline std::string SLIPPI_MATCHMAKING_URL = "mm.slippi.gg";
 	static const inline std::string SLIPPI_DEV_MATCHMAKING_URL = "mm2.slippi.gg";
@@ -48,6 +49,9 @@ class Lylat
 #else
 	static const inline std::string USER_LOGIN_URL = HOSTNAME + "/users/enable";
 	static const inline std::string GAME_REPORT_URL = HOSTNAME + "/reports";
+	static const inline std::string ABANDON_GAME_REPORT_URL = HOSTNAME + "/reports/abandon"; // TODO: create on server
+	static const inline std::string COMPLETE_GAME_REPORT_URL = HOSTNAME + "/reports/complete"; // TODO: create on server
 	static const inline std::string USER_JSON_URL = HOSTNAME + "/users/slp";
+	static const inline std::string UPDATE_URL = HOSTNAME + "/downloads/melee";
 #endif
 };

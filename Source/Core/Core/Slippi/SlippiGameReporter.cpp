@@ -7,6 +7,7 @@
 #include "Common/MsgHandler.h"
 #include "Common/StringUtil.h"
 #include "Common/Thread.h"
+#include "Core/Slippi/SlippiMatchmaking.h"
 
 #include "VideoCommon/OnScreenDisplay.h"
 #include "Common/Common.h"
@@ -56,7 +57,6 @@ static size_t curl_send(char *ptr, size_t size, size_t nmemb, void *userdata)
 SlippiGameReporter::SlippiGameReporter(SlippiUser *user, bool isMex)
 {
 	this->isMex = SConfig::GetInstance().m_slippiCustomMMEnabled && isMex;
-	this->reportUrl = Lylat::SLIPPI_GAME_REPORT_URL;
 
 	CURL *curl = curl_easy_init();
 	if (curl)
@@ -253,9 +253,9 @@ void SlippiGameReporter::ReportThreadHandler()
 
 			auto requestString = request.dump();
 
-			bool isMexMode = SlippiMatchmaking::IsMexMode(this->m_user, this->isMex, report.mode);
+			bool isMexMode = SlippiMatchmaking::IsMexMode(this->m_user, this->isMex, report.onlineMode);
 
-			std::string effectiveUrl = this->reportUrl;
+			std::string effectiveUrl = REPORT_URL;
 			if (isMexMode)
 			{
 				effectiveUrl = SConfig::GetInstance().m_slippiCustomMMReportingURL;
@@ -343,9 +343,10 @@ void SlippiGameReporter::ReportThreadHandler()
 	}
 }
 
-void SlippiGameReporter::ReportAbandonment(std::string matchId)
+void SlippiGameReporter::ReportAbandonment(std::string matchId, SlippiMatchmaking::OnlinePlayMode mode)
 {
 	auto userInfo = m_user->GetUserInfo();
+	bool isMexMode = SlippiMatchmaking::IsMexMode(this->m_user, this->isMex, mode);
 
 	// Prepare report
 	json request;
@@ -355,9 +356,18 @@ void SlippiGameReporter::ReportAbandonment(std::string matchId)
 
 	auto requestString = request.dump();
 
+	std::string effectiveUrl = ABANDON_URL;
+	if (isMexMode)
+	{
+		effectiveUrl = SConfig::GetInstance().m_slippiCustomMMReportingURL+"/abandon";
+#ifdef LYLAT_STAGING
+		effectiveUrl = Lylat::ABANDON_GAME_REPORT_URL;
+#endif
+	}
+
 	// Send report
 	curl_easy_setopt(m_curl, CURLOPT_POST, true);
-	curl_easy_setopt(m_curl, CURLOPT_URL, ABANDON_URL.c_str());
+	curl_easy_setopt(m_curl, CURLOPT_URL, effectiveUrl.c_str());
 	curl_easy_setopt(m_curl, CURLOPT_POSTFIELDS, requestString.c_str());
 	curl_easy_setopt(m_curl, CURLOPT_POSTFIELDSIZE, requestString.length());
 	CURLcode res = curl_easy_perform(m_curl);
@@ -368,7 +378,7 @@ void SlippiGameReporter::ReportAbandonment(std::string matchId)
 	}
 }
 
-void SlippiGameReporter::ReportCompletion(std::string matchId, u8 endMode)
+void SlippiGameReporter::ReportCompletion(std::string matchId, u8 endMode, SlippiMatchmaking::OnlinePlayMode mode)
 {
 	auto userInfo = m_user->GetUserInfo();
 
@@ -381,9 +391,20 @@ void SlippiGameReporter::ReportCompletion(std::string matchId, u8 endMode)
 
 	auto requestString = request.dump();
 
+	bool isMexMode = SlippiMatchmaking::IsMexMode(this->m_user, this->isMex, mode);
+	std::string effectiveUrl = COMPLETE_URL;
+
+	if (isMexMode)
+	{
+		effectiveUrl = SConfig::GetInstance().m_slippiCustomMMReportingURL+"/complete";
+#ifdef LYLAT_STAGING
+		effectiveUrl = Lylat::COMPLETE_GAME_REPORT_URL;
+#endif
+	}
+
 	// Send report
 	curl_easy_setopt(m_curl, CURLOPT_POST, true);
-	curl_easy_setopt(m_curl, CURLOPT_URL, COMPLETE_URL.c_str());
+	curl_easy_setopt(m_curl, CURLOPT_URL, effectiveUrl.c_str());
 	curl_easy_setopt(m_curl, CURLOPT_POSTFIELDS, requestString.c_str());
 	curl_easy_setopt(m_curl, CURLOPT_POSTFIELDSIZE, requestString.length());
 	CURLcode res = curl_easy_perform(m_curl);

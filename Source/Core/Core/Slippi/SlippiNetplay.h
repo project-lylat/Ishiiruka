@@ -144,7 +144,6 @@ class SlippiMatchInfo
 	}
 };
 
-class OnlinePlayMode;
 class SlippiNetplayClient
 {
   public:

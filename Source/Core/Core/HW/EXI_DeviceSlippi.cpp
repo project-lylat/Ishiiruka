@@ -283,7 +283,7 @@ CEXISlippi::~CEXISlippi()
 	if (activeMatchId.find("mode.ranked") != std::string::npos)
 	{
 		ERROR_LOG(SLIPPI_ONLINE, "Exit during in-progress ranked game: %s", activeMatchId.c_str());
-		gameReporter->ReportAbandonment(activeMatchId);
+		gameReporter->ReportAbandonment(activeMatchId, lastSearch.mode);
 	}
 	handleConnectionCleanup();
 
@@ -2883,7 +2883,6 @@ void CEXISlippi::handleReportGame(const SlippiExiTypes::ReportGameQuery &query)
 	r.stageId = Common::FromBigEndian(*(u16 *)&query.gameInfoBlock[0xE]);
 	r.gameEndMethod = query.gameEndMethod;
 	r.lrasInitiator = query.lrasInitiator;
-	r.mode = this->lastSearch.mode;
 
 	ERROR_LOG(SLIPPI_ONLINE, "Mode: %d / %d, Frames: %d, GameIdx: %d, TiebreakIdx: %d, WinnerIdx: %d, StageId: %d, GameEndMethod: %d, LRASInitiator: %d",
 	          r.onlineMode, query.onlineMode, r.durationFrames, r.gameIndex, r.tiebreakIndex, r.winnerIdx, r.stageId, r.gameEndMethod, r.lrasInitiator);
@@ -3031,7 +3030,7 @@ void CEXISlippi::handleCompleteSet(const SlippiExiTypes::ReportSetCompletionQuer
 	if (lastMatchId.find("mode.ranked") != std::string::npos)
 	{
 		INFO_LOG(SLIPPI_ONLINE, "Reporting set completion: %s", lastMatchId.c_str());
-		gameReporter->ReportCompletion(lastMatchId, query.endMode);
+		gameReporter->ReportCompletion(lastMatchId, query.endMode, lastSearch.mode);
 	}
 }
 
