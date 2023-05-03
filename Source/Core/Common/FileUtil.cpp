@@ -813,9 +813,7 @@ std::string GetSlippiUserJSONPath()
 	std::string userFilePath = File::GetUserPath(F_USERJSON_IDX);
 #else
 #if defined(__APPLE__)
-    std::string userFilePath = File::GetApplicationSupportDirectory() + "/Slippi/lylat.json";
-#elif defined(_WIN32)
-	std::string userFilePath = File::GetExeDirectory() + DIR_SEP + "lylat.json";
+	std::string userFilePath = File::GetApplicationSupportDirectory() + "/Slippi/lylat.json";
 #else
 	std::string userFilePath = File::GetUserPath(F_USERJSON_IDX);
 #endif

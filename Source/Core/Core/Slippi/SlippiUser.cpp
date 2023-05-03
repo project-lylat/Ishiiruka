@@ -114,26 +114,20 @@ bool SlippiUser::AttemptLogin()
 {
 	std::string userFilePath = File::GetSlippiUserJSONPath();
 
-	//INFO_LOG(SLIPPI_ONLINE, "Looking for file at: %s", userFilePath.c_str());
-
+// TODO: Remove a couple updates after ranked
+#ifndef __APPLE__
 	{
-		std::string userFilePathTxt =
-		    userFilePath + ".txt"; // Put the filename here in its own scope because we don't really need it elsewhere
-		if (File::Exists(userFilePathTxt))
+#ifdef _WIN32
+		std::string oldUserFilePath = File::GetExeDirectory() + DIR_SEP + "user.json";
+#else
+		std::string oldUserFilePath = File::GetUserPath(D_USER_IDX) + DIR_SEP + "user.json";
+#endif
+		if (File::Exists(oldUserFilePath) && !File::Rename(oldUserFilePath, userFilePath))
 		{
-			// If both files exist we just log they exist and take no further action
-			if (File::Exists(userFilePath))
-			{
-				INFO_LOG(SLIPPI_ONLINE,
-				         "Found both .json.txt and .json file for user data. Using .json and ignoring the .json.txt");
-			}
-			// If only the .txt file exists move the contents to a json file and log if it fails
-			else if (!File::Rename(userFilePathTxt, userFilePath))
-			{
-				WARN_LOG(SLIPPI_ONLINE, "Could not move file %s to %s", userFilePathTxt.c_str(), userFilePath.c_str());
-			}
+			WARN_LOG(SLIPPI_ONLINE, "Could not move file %s to %s", oldUserFilePath.c_str(), userFilePath.c_str());
 		}
 	}
+#endif
 
 	// Get user file
 	std::string userFileContents;
@@ -191,54 +185,18 @@ void SlippiUser::OpenLogInPage()
 
 bool SlippiUser::UpdateApp()
 {
-#if false//_WIN32
-	auto isoPath = SConfig::GetInstance().m_strFilename;
+	std::string url = Lylat::UPDATE_URL;
 
-	std::string path = File::GetExeDirectory() + "/dolphin-slippi-tools.exe";
-	std::string echoMsg = "echo Starting update process. If nothing happens after a few "
-	                      "minutes, you may need to update manually from https://slippi.gg/netplay ...";
-
-	// Check if updater exists, anti-virus sometimes deletes it
-	if (!File::Exists(path))
-	{
-		ERROR_LOG(SLIPPI_ONLINE, "Update requested but updater does not exist.");
-		OSD::AddMessage("Updater cannot be found. Please download the latest Slippi version from slippi.gg.", 30000, 0xFFFF0000);
-		return false;
-	}
-
-	std::string command = "start /b cmd /c " + echoMsg + " && \"" + path + "\" app-update -launch -iso \"" + isoPath +
-	                      "\" -version \"" + scm_slippi_semver_str + "\"";
-	WARN_LOG(SLIPPI, "Executing app update command: %s", command);
-	RunSystemCommand(command);
-	return true;
-#elif false //defined(__APPLE__)
-	CriticalAlertT(
-		"Automatic updates are not available for standalone Netplay builds on macOS. Please get the latest update from slippi.gg/netplay. "
-		"(The Slippi Launcher has automatic updates on macOS, and you should consider switching to that)"
-	);
-	return false;
-#elif false//
-	const char *appimage_path = getenv("APPIMAGE");
-	const char *appmount_path = getenv("APPDIR");
-	if (!appimage_path)
-	{
-		CriticalAlertT("Automatic updates are not available for non-AppImage Linux builds.");
-		return false;
-	}
-	std::string path(appimage_path);
-	std::string mount_path(appmount_path);
-	std::string command = mount_path + "/usr/bin/appimageupdatetool " + path;
-	WARN_LOG(SLIPPI, "Executing app update command: %s", command.c_str());
-	RunSystemCommand(command);
-	CriticalAlertT("Restart Dolphin to finish the update. If there was an issue, please head over to the Slippi "
-	               "Discord for support.");
-	return true;
+#ifdef _WIN32
+	std::string command = "explorer \"" + url + "\"";
+#elif defined(__APPLE__)
+	std::string command = "open \"" + url + "\"";
 #else
-	CriticalAlertT(
-	    "Automatic updates are not currently available for Lylat. Please get the latest update from https://lylat.gg/download."
-	);
-	return true;
+	std::string command = "xdg-open \"" + url + "\""; // Linux
 #endif
+
+	RunSystemCommand(command);
+	return true;
 }
 
 void SlippiUser::ListenForLogIn()
