@@ -65,6 +65,11 @@ class SlippiNetplayConfigPane final : public wxPanel
 	wxTextCtrl *m_slippi_custom_mm_reporting_host_input;
 
 	wxCheckBox *m_reduce_timing_dispersion_checkbox;
+
+#ifndef IS_PLAYBACK
+	void OnToggleJukeboxEnabled(wxCommandEvent &event);
+	wxCheckBox *m_slippi_jukebox_enabled_checkbox;
+#endif
 };
 
 class SlippiPlaybackConfigPane final : public wxPanel

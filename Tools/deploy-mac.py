@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-
+#!/usr/bin/env python3
 
 import argparse
 import errno
@@ -133,11 +132,10 @@ if __name__ == '__main__':
 	parser.add_argument('-v', '--verbose', action='store_true', default=False, help='output more information')
 	parser.add_argument('bundle', help='application bundle to deploy')
 	args = parser.parse_args()
-	print(args)
 
 	otool = args.otool
 	installNameTool = args.install_name_tool
-	verbose = True
+	verbose = args.verbose
 
 	try:
 		shutil.rmtree(os.path.join(args.bundle, 'Contents/Frameworks/'))

@@ -30,6 +30,28 @@
 #include <json.hpp>
 using json = nlohmann::json;
 
+const std::vector<std::string> SlippiUser::defaultChatMessages = {
+    "ggs",
+    "one more",
+    "brb",
+    "good luck",
+
+    "well played",
+    "that was fun",
+    "thanks",
+    "too good",
+
+    "sorry",
+    "my b",
+    "lol",
+    "wow",
+
+    "gotta go",
+    "one sec",
+    "let's play again later",
+    "bad connection",
+};
+
 #ifdef _WIN32
 #define MAX_SYSTEM_PROGRAM (4096)
 static void system_hidden(const char *cmd)
@@ -285,14 +307,26 @@ SlippiUser::UserInfo SlippiUser::parseFile(std::string fileContents)
 	info.playKey = readString(res, "playKey");
 	info.connectCode = readString(res, "connectCode");
 	info.lylatVersion = readString(res, "latestVersion");
-	auto slp = res["slippi"];
+    info.chatMessages = SlippiUser::defaultChatMessages;
+    
+    auto slp = res["slippi"];
 	if(!slp.is_null()) {
 		info.slippi_uid = readString(slp, "uid");
 		info.slippi_playKey = readString(slp, "playKey");
 		info.slippi_connectCode = readString(slp, "connectCode");
 		info.latestVersion = readString(slp, "latestVersion");
+		if (slp["chatMessages"].is_array())
+        {
+            info.chatMessages = slp.value("chatMessages", SlippiUser::defaultChatMessages);
+            if (info.chatMessages.size() != 16)
+            {
+                info.chatMessages = SlippiUser::defaultChatMessages;
+            }
+        }
 	}
 
+
+	
 
 	return info;
 }
@@ -319,7 +353,7 @@ void SlippiUser::overwriteFromServer()
 
 	// Perform curl request
 	std::string resp;
-	curl_easy_setopt(m_curl, CURLOPT_URL, (url + "/" + userInfo.uid).c_str());
+	curl_easy_setopt(m_curl, CURLOPT_URL, (url + "/" + userInfo.uid + "?additionalFields=chatMessages").c_str());
 	curl_easy_setopt(m_curl, CURLOPT_WRITEDATA, &resp);
 	CURLcode res = curl_easy_perform(m_curl);
 
@@ -345,8 +379,18 @@ void SlippiUser::overwriteFromServer()
 	if(!slp.is_null()) {
 		userInfo.connectCode = slp.find("connectCode") != slp.end() && !slp["connectCode"].is_null() ? slp.value("connectCode", (std::string) userInfo.connectCode) : "TMP#1234";
 		userInfo.latestVersion = slp.find("latestVersion") != slp.end() && !slp["latestVersion"].is_null() ? slp.value("latestVersion", (std::string) userInfo.latestVersion) : userInfo.lylatVersion;
+		if (slp["chatMessages"].is_array())
+        {
+            userInfo.chatMessages = slp.value("chatMessages", SlippiUser::defaultChatMessages);
+            if (userInfo.chatMessages.size() != 16)
+            {
+                userInfo.chatMessages = SlippiUser::defaultChatMessages;
+            }
+        }
 	} else {
 		userInfo.connectCode = "TMP#1234";
 		userInfo.latestVersion = userInfo.lylatVersion;
 	}
+
+	
 }

@@ -28,6 +28,8 @@ class SlippiUser
 
 
 		int port;
+
+		std::vector<std::string> chatMessages;
 	};
 
 	SlippiUser();
@@ -44,6 +46,8 @@ class SlippiUser
 	void FileListenThread();
 	bool HasSlippiInfo();
 
+
+	const static std::vector<std::string> defaultChatMessages;
 
   protected:
 	UserInfo parseFile(std::string fileContents);
