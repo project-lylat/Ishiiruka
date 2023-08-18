@@ -142,6 +142,9 @@
     <Filter Include="Slippi">
       <UniqueIdentifier>{09518b35-f1cc-428f-b2f7-6210874489a9}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Lylat">
+      <UniqueIdentifier>{83556a85-b59f-4b38-ba83-2737785e0bc7}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BootManager.cpp" />
@@ -793,6 +796,9 @@
     <ClCompile Include="Slippi\SlippiDirectCodes.cpp">
       <Filter>Slippi</Filter>
     </ClCompile>
+    <ClCompile Include="Lylat\Lylat.cpp">
+      <Filter>Lylat</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BootManager.h" />
@@ -1369,6 +1375,9 @@
     </ClInclude>
     <ClInclude Include="Slippi\SlippiExiTypes.h">
       <Filter>Slippi</Filter>
+    </ClInclude>
+    <ClInclude Include="Lylat\Lylat.h">
+      <Filter>Lylat</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

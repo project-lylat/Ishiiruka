@@ -201,6 +201,7 @@ set(SRCS	ActionReplay.cpp
 			Slippi/SlippiTimer.cpp
 			Slippi/SlippiUser.cpp
 			Slippi/SlippiDirectCodes.cpp
+			Lylat/Lylat.cpp
 			)
 
 if(_M_X86)
