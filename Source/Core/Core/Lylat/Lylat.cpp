@@ -4,9 +4,9 @@
 
 const std::string Lylat::SLIPPI_HOSTNAME = "https://slippi.gg";
 const std::string Lylat::SLIPPI_USER_JSON_URL = "https://users-rest-dot-slippi.uc.r.appspot.com/user";
-const std::string Lylat::SLIPPI_GAME_REPORT_URL = "https://rankings-dot-slippi.uc.r.appspot.com/report";
-const std::string Lylat::SLIPPI_ABANDON_GAME_REPORT_URL = "https://rankings-dot-slippi.uc.r.appspot.com/abandon";
-const std::string Lylat::SLIPPI_COMPLETE_GAME_REPORT_URL = "https://rankings-dot-slippi.uc.r.appspot.com/complete";
+const std::string Lylat::SLIPPI_GAME_REPORT_URL = "https://gql-gateway-dev-dot-slippi.uc.r.appspot.com/graphql";
+const std::string Lylat::SLIPPI_ABANDON_GAME_REPORT_URL = SLIPPI_GAME_REPORT_URL;
+const std::string Lylat::SLIPPI_COMPLETE_GAME_REPORT_URL = SLIPPI_GAME_REPORT_URL;
 const std::string Lylat::SLIPPI_USER_LOGIN_URL = SLIPPI_HOSTNAME + "/online/enable";
 const std::string Lylat::SLIPPI_MATCHMAKING_URL = "mm.slippi.gg";
 const std::string Lylat::SLIPPI_DEV_MATCHMAKING_URL = "mm2.slippi.gg";

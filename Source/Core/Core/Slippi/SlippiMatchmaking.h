@@ -67,7 +67,8 @@ class SlippiMatchmaking
 	u8 RemotePlayerCount();
 	MatchmakeResult GetMatchmakeResult();
 	static bool IsFixedRulesMode(OnlinePlayMode mode);
-	static bool IsMexMode(SlippiUser *user, bool isCurrentGameMex, OnlinePlayMode mode);
+	static bool IsMexMode(SlippiUser *user, OnlinePlayMode mode);
+	static bool IsCurrentGameMex();
 
   protected:
 	const std::string MM_HOST_DEV = Lylat::SLIPPI_DEV_MATCHMAKING_URL;

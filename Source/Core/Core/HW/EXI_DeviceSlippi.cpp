@@ -307,11 +307,20 @@ CEXISlippi::~CEXISlippi()
 	{
 		ERROR_LOG(SLIPPI_ONLINE, "Exit during in-progress ranked game: %s", activeMatchId.c_str());
 
-        // TODO: pass isMex?
+		// TODO: pass isMex?
 		auto userInfo = user->GetUserInfo();
 
+		bool isMexMode = SlippiMatchmaking::IsMexMode(user.get(), lastSearch.mode);
+		std::string effectiveUrl = Lylat::SLIPPI_ABANDON_GAME_REPORT_URL;
+		if (isMexMode)
+		{
+			effectiveUrl = SConfig::GetInstance().m_slippiCustomMMReportingURL + "/abandon";
+#ifdef LYLAT_STAGING
+			effectiveUrl = Lylat::ABANDON_GAME_REPORT_URL;
+#endif
+		}
 		slprs_exi_device_report_match_abandonment(slprs_exi_device_ptr, userInfo.uid.c_str(), userInfo.playKey.c_str(),
-		                                          activeMatchId.c_str());
+		                                          activeMatchId.c_str(), effectiveUrl.c_str());
 	}
 	handleConnectionCleanup();
 
@@ -1533,7 +1542,7 @@ bool CEXISlippi::shouldAdvanceOnlineFrame(s32 frame)
 
 		// 8/8/23: I want to disable forced frame advances for now. I think they're largely unnecessary because of the
 		// dynamic emulation speed and cause more jarring frame drops.
-	
+
 		// if (offsetUs < -t2 && !isCurrentlyAdvancing)
 		//{
 		//	isCurrentlyAdvancing = true;
@@ -1776,7 +1785,8 @@ void CEXISlippi::startFindMatch(u8 *payload)
 	auto isMex = SConfig::GetInstance().m_gameType == GAMETYPE_MELEE_MEX;
 	auto isCustomMMEnabled = SConfig::GetInstance().m_slippiCustomMMEnabled;
 
-	if(!user->HasSlippiInfo() && (search.mode != SlippiMatchmaking::UNRANKED)) {
+	if (!user->HasSlippiInfo() && (search.mode != SlippiMatchmaking::UNRANKED))
+	{
 		forcedError = ERROR_MSG_MISSING_SLIPPI_INFO;
 		return;
 	}
@@ -1799,7 +1809,7 @@ void CEXISlippi::startFindMatch(u8 *payload)
 	}
 
 	// TODO: Make this work so we dont have to pass shiftJis to mm server
-    //	search.connectCode = SHIFTJISToUTF8(shiftJisCode).c_str();
+	//	search.connectCode = SHIFTJISToUTF8(shiftJisCode).c_str();
 	search.connectCode = shiftJisCode;
 
 	// Store this search so we know what was queued for
@@ -2220,10 +2230,10 @@ void CEXISlippi::prepareOnlineMatchState()
 		oppName = std::string("Player");
 #endif
 
-        auto isMex = SConfig::GetInstance().m_gameType == GAMETYPE_MELEE_MEX;
-        auto isCustomMMEnabled = SConfig::GetInstance().m_slippiCustomMMEnabled;
+		auto isMex = SConfig::GetInstance().m_gameType == GAMETYPE_MELEE_MEX;
+		auto isCustomMMEnabled = SConfig::GetInstance().m_slippiCustomMMEnabled;
 
-        // Check if someone is picking dumb characters in non-direct/mex
+		// Check if someone is picking dumb characters in non-direct/mex
 		auto localCharOk = lps.characterId < 26 || isMex;
 		auto remoteCharOk = true;
 
@@ -2269,7 +2279,6 @@ void CEXISlippi::prepareOnlineMatchState()
 			stageId = selections->stageId;
 			break;
 		}
-
 
 		if (SlippiMatchmaking::IsFixedRulesMode(lastSearch.mode))
 		{
@@ -2920,6 +2929,7 @@ void CEXISlippi::handleReportGame(const SlippiExiTypes::ReportGameQuery &query)
 {
 	std::string matchId = recentMmResult.id;
 	SlippiMatchmakingOnlinePlayMode onlineMode = static_cast<SlippiMatchmakingOnlinePlayMode>(query.onlineMode);
+	SlippiMatchmaking::OnlinePlayMode onlinePlayMode = static_cast<SlippiMatchmaking::OnlinePlayMode>(query.onlineMode);
 	u32 durationFrames = query.frameLength;
 	u32 gameIndex = query.gameIndex;
 	u32 tiebreakIndex = query.tiebreakIndex;
@@ -2985,8 +2995,19 @@ void CEXISlippi::handleReportGame(const SlippiExiTypes::ReportGameQuery &query)
 			slippi_netplay->SendSyncedGameState(s);
 	}
 
+	bool isMexMode = SlippiMatchmaking::IsMexMode(user.get(), onlinePlayMode);
+
+	std::string effectiveUrl = Lylat::SLIPPI_GAME_REPORT_URL;
+	if (isMexMode)
+	{
+		effectiveUrl = SConfig::GetInstance().m_slippiCustomMMReportingURL;
+#ifdef LYLAT_STAGING
+		effectiveUrl = Lylat::GAME_REPORT_URL;
+#endif
+	}
+
 #ifndef LOCAL_TESTING
-	slprs_exi_device_log_game_report(slprs_exi_device_ptr, gameReport);
+	slprs_exi_device_log_game_report(slprs_exi_device_ptr, gameReport, effectiveUrl.c_str());
 #endif
 }
 
@@ -3089,8 +3110,18 @@ void CEXISlippi::handleCompleteSet(const SlippiExiTypes::ReportSetCompletionQuer
 
 		auto userInfo = user->GetUserInfo();
 
+		bool isMexMode = SlippiMatchmaking::IsMexMode(user.get(), lastSearch.mode);
+		std::string effectiveUrl = Lylat::SLIPPI_COMPLETE_GAME_REPORT_URL;
+		if (isMexMode)
+		{
+			effectiveUrl = SConfig::GetInstance().m_slippiCustomMMReportingURL + "/complete";
+#ifdef LYLAT_STAGING
+			effectiveUrl = Lylat::COMPLETE_GAME_REPORT_URL;
+#endif
+		}
+
 		slprs_exi_device_report_match_completion(slprs_exi_device_ptr, userInfo.uid.c_str(), userInfo.playKey.c_str(),
-		                                         lastMatchId.c_str(), query.endMode);
+		                                         lastMatchId.c_str(), query.endMode, effectiveUrl.c_str());
 	}
 }
 
@@ -3303,21 +3334,6 @@ void CEXISlippi::DMAWrite(u32 _uAddr, u32 _uSize)
 		case CMD_GET_PLAYER_SETTINGS:
 			handleGetPlayerSettings();
 			break;
-		case CMD_PLAY_MUSIC:
-		{
-			auto args = SlippiExiTypes::Convert<SlippiExiTypes::PlayMusicQuery>(&memPtr[bufLoc]);
-			slprs_exi_device_jukebox_play_music(slprs_exi_device_ptr, args.offset, args.size);
-			break;
-		}
-		case CMD_STOP_MUSIC:
-			slprs_exi_device_jukebox_stop_music(slprs_exi_device_ptr);
-			break;
-		case CMD_CHANGE_MUSIC_VOLUME:
-		{
-			auto args = SlippiExiTypes::Convert<SlippiExiTypes::ChangeMusicVolumeQuery>(&memPtr[bufLoc]);
-			slprs_exi_device_jukebox_set_music_volume(slprs_exi_device_ptr, args.volume);
-			break;
-		}
 		default:
 			writeToFileAsync(&memPtr[bufLoc], payloadLen + 1, "");
 			m_slippiserver->write(&memPtr[bufLoc], payloadLen + 1);
@@ -3366,7 +3382,7 @@ void CEXISlippi::ConfigureJukebox()
 #endif
 
 	slprs_exi_device_configure_jukebox(slprs_exi_device_ptr, SConfig::GetInstance().bSlippiJukeboxEnabled,
-	                                   AudioCommonGetCurrentVolume);
+	                                   Memory::m_pRAM, AudioCommonGetCurrentVolume);
 #endif
 }
 

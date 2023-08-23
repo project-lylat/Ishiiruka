@@ -88,19 +88,28 @@ std::string SlippiMatchmaking::getMexMMHost()
  */
 std::string SlippiMatchmaking::getMMHostForSearchMode()
 {
-	bool isMexMode = SlippiMatchmaking::IsMexMode(this->m_user, this->isMex, this->m_searchSettings.mode);
+	bool isMexMode = SlippiMatchmaking::IsMexMode(this->m_user, this->m_searchSettings.mode);
 	return isMexMode ? getMexMMHost() : getSlippiMMHost();
+}
+
+/** indicates if current game is Mex Type
+ *
+ * @return
+ */
+bool SlippiMatchmaking::IsCurrentGameMex() {
+	auto isMex = SConfig::GetInstance().m_gameType == GAMETYPE_MELEE_MEX;
+	return SConfig::GetInstance().m_slippiCustomMMEnabled && isMex;
 }
 
 /**
  * Static Helper to identify if a given MM Mode should go through
  * Slippi Servers or not
- * @param isCurrentGameMex that indicates if current game is Mex Type
  * @param mode
  * @return false if the mode should go through Slippi Servers
  */
-bool SlippiMatchmaking::IsMexMode(SlippiUser* user, bool isCurrentGameMex, OnlinePlayMode mode)
+bool SlippiMatchmaking::IsMexMode(SlippiUser *user, OnlinePlayMode mode)
 {
+	auto isCurrentGameMex = IsCurrentGameMex();
 
 	// If the current user account is not connected to Slippi then route through Lylat
 	if (!user->HasSlippiInfo())
@@ -480,7 +489,7 @@ void SlippiMatchmaking::startMatchmaking()
 	bool isSlippiMode =
 	    m_searchSettings.mode != SlippiMatchmaking::OnlinePlayMode::UNRANKED ||
 	    (!isMex && m_searchSettings.mode == SlippiMatchmaking::OnlinePlayMode::UNRANKED && m_user->HasSlippiInfo());
-    //TODO: do not route ranked
+	// TODO: do not route ranked
 
 	// Send message to server to create ticket
 	json request;

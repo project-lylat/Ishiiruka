@@ -4,4 +4,5 @@
 	branch = master
 [submodule "Externals/SlippiRustExtensions"]
 	path = Externals/SlippiRustExtensions
-	url = https://github.com/project-slippi/slippi-rust-extensions.git
+	url = https://github.com/project-lylat/slippi-rust-extensions.git
+	branch = "v3.2.2"

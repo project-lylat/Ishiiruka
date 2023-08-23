@@ -59,6 +59,7 @@
       <!-- Note that we need to cd into the directory proper, otherwise the Rust toolchain configuration file will not be picked up -->
       <Command>
         cd $(ExternalsDir)SlippiRustExtensions
+        set SLIPPI_ENV=production
         cargo build --target x86_64-pc-windows-msvc --release
       </Command>
     </PreBuildEvent>
@@ -72,6 +73,7 @@
       <Message>Compile SlippiRustExtensions (w/ playback feature)</Message>
       <Command>
         cd $(ExternalsDir)SlippiRustExtensions
+        set SLIPPI_ENV=production
         cargo build --target x86_64-pc-windows-msvc --release --features playback
       </Command>
     </PreBuildEvent>
@@ -86,6 +88,7 @@
       <!-- This could be tweaked to not be release mode, but would need corresponding tweaks in Dolphin.vcproj -->
       <Command>
         cd $(ExternalsDir)SlippiRustExtensions
+        set SLIPPI_ENV=production
         cargo build --target x86_64-pc-windows-msvc --release
       </Command>
     </PreBuildEvent>
@@ -99,6 +102,7 @@
       <!-- This could be tweaked to not be release mode, but would need corresponding tweaks in Dolphin.vcproj -->
       <Command>
         cd $(ExternalsDir)SlippiRustExtensions
+        set SLIPPI_ENV=production
         cargo build --target x86_64-pc-windows-msvc --release
       </Command>
     </PreBuildEvent>
