@@ -72,15 +72,16 @@ We cannot change the Rust submodule without forking it, so:
 
 ## Verification
 
-Not built yet. The first Release x64 build (MSBuild, VS 2019 v142,
-`Source\Dolphin.sln /t:Dolphin /m:1 /p:CL_MPCount=2`) stopped in the Rust
-step. First cause: `rust-toolchain.toml` picks the default host toolchain,
-which is the GNU one on this machine, so the MSVC target had no `core`.
-The fix needs no repo change: set
-`RUSTUP_TOOLCHAIN=1.88.0-x86_64-pc-windows-msvc` in the build shell. The
-second run then failed with "not enough space on the disk" (drive C: was
-full), so no C++ file of the merge has been compiled yet. Online play,
-reporting and the user API refresh have not been run.
+Release x64 build, run from `tmp-ishiirukauild.bat` under VS 2019 vcvars64:
+`msbuild Source\Dolphin.sln /t:Dolphin /p:Configuration=Release /p:Platform=x64 /m:1 /p:CL_MPCount=2`,
+with `RUSTUP_TOOLCHAIN=1.88.0-x86_64-pc-windows-msvc` set. On this machine,
+`rust-toolchain.toml` alone picks the GNU host toolchain, which has no MSVC
+`core`. The build passed at commit 5805cd600 with 0 errors and exit code 0,
+and needed no code fixes. It produced `Binaryd\Slippi Dolphin.exe` and
+`slippi_rust_extensions.dll`.
+
+Not run: a game, online play, reporting, or the user API refresh against
+real servers.
 
 ## QR sign-in (separate commits)
 
@@ -88,4 +89,20 @@ reporting and the user API refresh have not been run.
 `DolphinWX/SlippiQrLoginDialog.*` (the dialog). `SlippiUser::OpenLogInPage`
 calls a hook that `CFrame` sets to open the dialog. Without the hook, it opens
 the browser page. qrcodegen v1.8.0 is in `Externals/qrcodegen` (MIT,
-listed in `Externals/licenses.md`). This code has not been built yet either.
+listed in `Externals/licenses.md`).
+
+Checked against a local Python mock of `/api/device/code` and
+`/api/device/token`, with `[Core] LylatServerOrigin = http://127.0.0.1:3002`
+in the ignored `Binary/x64/User/Config/Dolphin.ini`. The test aid
+`LYLAT_QR_LOGIN_AT_START=1` opened the dialog with no game running.
+
+| Check | Result |
+| --- | --- |
+| Approve run | One code, polls every 2 s, 200 after about 8 s. `Binary/x64/lylat.json` was written with the mock account, and the dialog showed "Logged in". |
+| Deny run | "Sign-in denied", with Retry and Manual login. |
+
+Not checked:
+- A real Lylat server, or a phone scan. The QR image was not decoded by a tool.
+- The 404 fallback to the browser.
+- Expired, Error and Retry, and the in-game login hook with a running game.
+- The CMake (Linux/macOS) build.
