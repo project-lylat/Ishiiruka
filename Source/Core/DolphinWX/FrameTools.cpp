@@ -85,6 +85,7 @@
 #include "VideoCommon/VideoConfig.h"
 
 #include "Common/Logging/Log.h"
+#include "DolphinWX/SlippiQrLoginDialog.h"
 
 #if defined(__APPLE__)
 #include <IOKit/pwr_mgt/IOPMLib.h>

@@ -116,7 +116,11 @@ void LylatDeviceLogin::Begin()
 
 void LylatDeviceLogin::Cancel()
 {
-	m_cancel = true;
+	{
+		// Set under the lock so a Wait() that is about to sleep cannot miss the wakeup.
+		std::lock_guard<std::mutex> lk(m_mutex);
+		m_cancel = true;
+	}
 	m_cv.notify_all();
 	if (m_thread.joinable())
 		m_thread.join();

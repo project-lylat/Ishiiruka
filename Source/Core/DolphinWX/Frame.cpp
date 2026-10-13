@@ -6,6 +6,7 @@
 
 #include <atomic>
 #include <cstddef>
+#include <cstdlib>
 #include <fstream>
 #include <string>
 #include <utility>
@@ -74,6 +75,7 @@
 
 #include "Core/Slippi/SlippiPlayback.h"
 #include "Core/Slippi/SlippiReplayComm.h"
+#include "Common/Logging/Log.h"
 #include "Core/Slippi/SlippiUser.h"
 #include "DolphinWX/SlippiQrLoginDialog.h"
 
@@ -512,8 +514,15 @@ CFrame::CFrame(wxFrame *parent, wxWindowID id, const wxString &title, wxRect geo
 	SlippiUser::s_showLoginDialog = [this] { CallAfter([this] { ShowSlippiQrLogin(); }); };
 	SlippiUser::s_onLoggedIn = [this] { CallAfter([this] { OnSlippiLoggedIn(); }); };
 	// Test aid: open the QR sign-in dialog at start (used for screenshots, no game needed).
-	if (getenv("LYLAT_QR_LOGIN_AT_START"))
-		CallAfter([this] { ShowSlippiQrLogin(); });
+	// It refuses to run against the default (production) origin: set [Core] LylatServerOrigin
+	// to a local server first.
+	if (std::getenv("LYLAT_QR_LOGIN_AT_START"))
+	{
+		if (SlippiUser::GetLylatOrigin() == "https://lylat.gg")
+			WARN_LOG(SLIPPI_ONLINE, "LYLAT_QR_LOGIN_AT_START ignored: LylatServerOrigin is the production server");
+		else
+			CallAfter([this] { ShowSlippiQrLogin(); });
+	}
 }
 // Destructor
 CFrame::~CFrame()
