@@ -50,6 +50,8 @@ Dolphin includes or links code of the following third-party software projects:
    [MIT](http://www.portaudio.com/license.html)
 - [PulseAudio](http://www.freedesktop.org/wiki/Software/PulseAudio/):
    [LGPLv2.1+](http://cgit.freedesktop.org/pulseaudio/pulseaudio/tree/LICENSE)
+- [QR Code generator](https://www.nayuki.io/page/qr-code-generator-library) v1.8.0 (Externals/qrcodegen, used by the QR sign-in):
+   [MIT](https://github.com/nayuki/QR-Code-generator/blob/master/Readme.markdown#license)
 - [Qt5](http://qt-project.org/):
    [LGPLv3 and other licenses](http://doc.qt.io/qt-5/licensing.html)
 - [SDL](https://www.libsdl.org/):
