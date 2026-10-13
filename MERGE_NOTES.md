@@ -72,6 +72,20 @@ We cannot change the Rust submodule without forking it, so:
 
 ## Verification
 
-See the commit messages and the report. Built Release x64 with MSBuild
-(VS 2019, v142) including the Rust library. Online play, reporting and
-the user API refresh were not run against real servers.
+Not built yet. The first Release x64 build (MSBuild, VS 2019 v142,
+`Source\Dolphin.sln /t:Dolphin /m:1 /p:CL_MPCount=2`) stopped in the Rust
+step. First cause: `rust-toolchain.toml` picks the default host toolchain,
+which is the GNU one on this machine, so the MSVC target had no `core`.
+The fix needs no repo change: set
+`RUSTUP_TOOLCHAIN=1.88.0-x86_64-pc-windows-msvc` in the build shell. The
+second run then failed with "not enough space on the disk" (drive C: was
+full), so no C++ file of the merge has been compiled yet. Online play,
+reporting and the user API refresh have not been run.
+
+## QR sign-in (separate commits)
+
+`Core/Slippi/LylatDeviceLogin.*` (the device-code client) and
+`DolphinWX/SlippiQrLoginDialog.*` (the dialog). `SlippiUser::OpenLogInPage`
+calls a hook that `CFrame` sets to open the dialog. Without the hook, it opens
+the browser page. qrcodegen v1.8.0 is in `Externals/qrcodegen` (MIT,
+listed in `Externals/licenses.md`). This code has not been built yet either.
