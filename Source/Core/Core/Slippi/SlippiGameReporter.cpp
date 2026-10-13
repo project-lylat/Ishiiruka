@@ -13,7 +13,7 @@
 #include <codecvt>
 #include <locale>
 
-#include <json.hpp>
+#include <nlohmann/json.hpp>
 using json = nlohmann::json;
 
 static size_t receive(char *ptr, size_t size, size_t nmemb, void *rcvBuf)
@@ -31,7 +31,6 @@ static size_t receive(char *ptr, size_t size, size_t nmemb, void *rcvBuf)
 SlippiGameReporter::SlippiGameReporter(SlippiUser *user, bool isMex)
 {
 	this->isMex = SConfig::GetInstance().m_slippiCustomMMEnabled && isMex;
-	this->reportUrl = SLIPPI_REPORT_URL;
 
 	CURL *curl = curl_easy_init();
 	if (curl)
@@ -77,9 +76,8 @@ void SlippiGameReporter::StartReport(GameReport report)
 	cv.notify_one();
 }
 
-void SlippiGameReporter::StartNewSession(std::vector<std::string> playerUids)
+void SlippiGameReporter::StartNewSession()
 {
-	this->playerUids = playerUids;
 	gameIndex = 1;
 }
 
@@ -114,7 +112,7 @@ void SlippiGameReporter::ReportThreadHandler()
 			for (int i = 0; i < report.players.size(); i++)
 			{
 				json p;
-				p["uid"] = playerUids[i];
+				p["uid"] = report.players[i].uid;
 				p["damageDone"] = report.players[i].damageDone;
 				p["stocksRemaining"] = report.players[i].stocksRemaining;
 
@@ -125,8 +123,7 @@ void SlippiGameReporter::ReportThreadHandler()
 
 			auto requestString = request.dump();
 
-			bool isMexMode = SlippiMatchmaking::IsMexMode(this->m_user, this->isMex, report.mode);
-			std::string effectiveUrl = isMexMode ? SConfig::GetInstance().m_slippiCustomMMReportingURL : this->reportUrl;
+			std::string effectiveUrl = SConfig::GetInstance().m_slippiCustomMMReportingURL;
 			// ERROR_LOG(SLIPPI_ONLINE, "[GameReport] REPORT_URL: %s", effectiveUrl.c_str());
 
 			// Send report

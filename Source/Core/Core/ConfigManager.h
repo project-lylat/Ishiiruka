@@ -150,6 +150,10 @@ struct SConfig : NonCopyable
 	bool bAdapterWarning = true;
 
 	bool bReduceTimingDispersion = false;
+	bool bSlippiPlayerRankDisplay = true;
+	bool bSlippiOpponentRankDisplay = true;
+	bool bSlippiJukeboxEnabled = true;
+	int iSlippiJukeboxVolume = 100;
 
 	MeleeLagReductionCode iLagReductionCode = MELEE_LAG_REDUCTION_CODE_UNSET;
 	bool bHasShownLagReductionWarning = false;
@@ -157,15 +161,19 @@ struct SConfig : NonCopyable
 
 	// Slippi
 	bool m_slippiSaveReplays = true;
+	bool m_slippiRegenerateReplays = false;
 	int m_slippiEnableQuickChat = SLIPPI_CHAT_ON;
 	bool m_slippiReplayMonthFolders = false;
 	std::string m_strSlippiReplayDir;
+	std::string m_strSlippiRegenerateReplayDir;
 	bool m_slippiForceNetplayPort = false;
 	int m_slippiNetplayPort;
 	bool m_slippiForceLanIp = false;
 	bool m_slippiCustomMMEnabled = true;
 	std::string m_slippiCustomMMServerURL = "165.227.213.180";
 	std::string m_slippiCustomMMReportingURL = "https://lylat.gg/reports";
+	// Lylat: origin of the Lylat site (login, user API, QR sign-in). Set it to a local server for testing.
+	std::string m_lylatServerOrigin = "https://lylat.gg";
 	std::string m_slippiLanIp = "";
 	bool m_meleeUserIniBootstrapped = false;
 	bool m_blockingPipes = false;

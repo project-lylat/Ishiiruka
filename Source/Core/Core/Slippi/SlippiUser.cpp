@@ -1,10 +1,6 @@
 #include "SlippiUser.h"
 
-#ifdef _WIN32
-#include "AtlBase.h"
-#include "AtlConv.h"
-#endif
-
+#include "Common/Common.h"
 #include "Common/CommonPaths.h"
 #include "Common/FileUtil.h"
 #include "Common/Logging/Log.h"
@@ -12,47 +8,32 @@
 #include "Common/StringUtil.h"
 #include "Common/Thread.h"
 
-#include "Common/Common.h"
 #include "Core/ConfigManager.h"
 
-#include "DolphinWX/Frame.h"
-#include "DolphinWX/Main.h"
+#include "SlippiRustExtensions.h"
 
-#ifdef __APPLE__
-#include "DolphinWX/SlippiAuthWebView/SlippiAuthWebView.h"
-#endif
-
-#include "VideoCommon/OnScreenDisplay.h"
-
-#include <codecvt>
-#include <locale>
-
-#include <json.hpp>
+#include <nlohmann/json.hpp>
 using json = nlohmann::json;
 
-#ifdef _WIN32
-#define MAX_SYSTEM_PROGRAM (4096)
-static void system_hidden(const char *cmd)
+std::function<void()> SlippiUser::s_showLoginDialog;
+std::function<void()> SlippiUser::s_onLoggedIn;
+
+// Takes a RustChatMessages pointer and extracts messages from them, then
+// frees the underlying memory safely.
+static std::vector<std::string> ConvertChatMessagesFromRust(RustChatMessages *rsMessages)
 {
-	PROCESS_INFORMATION p_info;
-	STARTUPINFO s_info;
+	std::vector<std::string> chatMessages;
 
-	memset(&s_info, 0, sizeof(s_info));
-	memset(&p_info, 0, sizeof(p_info));
-	s_info.cb = sizeof(s_info);
-
-	wchar_t utf16cmd[MAX_SYSTEM_PROGRAM] = {0};
-	MultiByteToWideChar(CP_UTF8, 0, cmd, -1, utf16cmd, MAX_SYSTEM_PROGRAM);
-	if (CreateProcessW(NULL, utf16cmd, NULL, NULL, 0, CREATE_NO_WINDOW, NULL, NULL, &s_info, &p_info))
+	for (int i = 0; i < rsMessages->len; i++)
 	{
-		DWORD ExitCode;
-		WaitForSingleObject(p_info.hProcess, INFINITE);
-		GetExitCodeProcess(p_info.hProcess, &ExitCode);
-		CloseHandle(p_info.hProcess);
-		CloseHandle(p_info.hThread);
+		std::string message = std::string(rsMessages->data[i]);
+		chatMessages.push_back(message);
 	}
+
+	slprs_user_free_messages(rsMessages);
+
+	return chatMessages;
 }
-#endif
 
 static void RunSystemCommand(const std::string &command)
 {
@@ -66,7 +47,7 @@ static void RunSystemCommand(const std::string &command)
 static size_t receive(char *ptr, size_t size, size_t nmemb, void *rcvBuf)
 {
 	size_t len = size * nmemb;
-	INFO_LOG(SLIPPI_ONLINE, "[User] Received data: %d", len);
+	INFO_LOG(SLIPPI_ONLINE, "[User] Received data: %d", (int)len);
 
 	std::string *buf = (std::string *)rcvBuf;
 
@@ -75,8 +56,10 @@ static size_t receive(char *ptr, size_t size, size_t nmemb, void *rcvBuf)
 	return len;
 }
 
-SlippiUser::SlippiUser()
+SlippiUser::SlippiUser(uintptr_t rs_exi_device_ptr)
 {
+	slprs_exi_device_ptr = rs_exi_device_ptr;
+
 	CURL *curl = curl_easy_init();
 	if (curl)
 	{
@@ -110,11 +93,19 @@ SlippiUser::~SlippiUser()
 	}
 }
 
+std::string SlippiUser::GetLylatOrigin()
+{
+	std::string origin = SConfig::GetInstance().m_lylatServerOrigin;
+	if (origin.empty())
+		origin = "https://lylat.gg";
+	while (!origin.empty() && origin.back() == '/')
+		origin.pop_back();
+	return origin;
+}
+
 bool SlippiUser::AttemptLogin()
 {
 	std::string userFilePath = File::GetSlippiUserJSONPath();
-
-	//INFO_LOG(SLIPPI_ONLINE, "Looking for file at: %s", userFilePath.c_str());
 
 	{
 		std::string userFilePathTxt =
@@ -139,41 +130,32 @@ bool SlippiUser::AttemptLogin()
 	std::string userFileContents;
 	File::ReadFileToString(userFilePath, userFileContents);
 
-	userInfo = parseFile(userFileContents);
-
-	isLoggedIn = !userInfo.uid.empty();
-	if (isLoggedIn)
+	UserInfo info = parseFile(userFileContents);
 	{
-		overwriteFromServer();
-		WARN_LOG(SLIPPI_ONLINE, "Found user %s (%s)", userInfo.displayName.c_str(), userInfo.uid.c_str());
+		std::lock_guard<std::mutex> lk(userInfoMutex);
+		userInfo = info;
 	}
 
-	return isLoggedIn;
+	bool loggedIn = !info.uid.empty();
+	if (loggedIn)
+	{
+		overwriteFromServer();
+		WARN_LOG(SLIPPI_ONLINE, "Found user %s (%s)", info.displayName.c_str(), info.uid.c_str());
+	}
+
+	isLoggedIn = loggedIn;
+	return loggedIn;
 }
 
-// On macOS, this will pop open a built-in webview to handle authentication. This is likely to see less and less
-// use over time but should hang around for a bit longer; macOS in particular benefits from having this for some
-// testing scenarios due to the cumbersome user.json location placement on that system.
-//
-// Windows and Linux don't have reliable WebView components, so this just pops the user over to slippi.gg for those
-// platforms.
-// TODO: change for production
-//#define USER_LOGIN_URL "https://slippi.gg/online/enable"
-//#define USER_LOGIN_URL "http://localhost:3000/users/enable"
-#define USER_LOGIN_URL "https://lylat.gg/users/enable"
-
-void SlippiUser::OpenLogInPage()
+// Lylat: the browser login page (the "manual login" flow). The page writes lylat.json to
+// the given path, the same way the Slippi page wrote user.json.
+void SlippiUser::OpenBrowserLogInPage()
 {
-#ifdef __APPLE__
-	CFrame *cframe = wxGetApp().GetCFrame();
-	cframe->OpenSlippiAuthenticationDialog((std::string)USER_LOGIN_URL+"?isWebview=true");
-#else
-	std::string url = USER_LOGIN_URL;
+	std::string url = GetLylatOrigin() + "/users/enable";
 	std::string path = File::GetSlippiUserJSONPath();
 
 #ifdef _WIN32
 	// On windows, sometimes the path can have backslashes and slashes mixed, convert all to backslashes
-	path = ReplaceAll(path, "\\", "\\");
 	path = ReplaceAll(path, "/", "\\");
 #endif
 
@@ -182,64 +164,33 @@ void SlippiUser::OpenLogInPage()
 
 #ifdef _WIN32
 	std::string command = "explorer \"" + fullUrl + "\"";
+#elif defined(__APPLE__)
+	std::string command = "open \"" + fullUrl + "\"";
 #else
 	std::string command = "xdg-open \"" + fullUrl + "\""; // Linux
 #endif
 
 	RunSystemCommand(command);
-#endif
+}
+
+// Lylat: the in-game "log in" action. The UI shows the QR sign-in dialog when it has
+// registered one; the dialog falls back to the browser page itself (404 or "Manual login").
+void SlippiUser::OpenLogInPage()
+{
+	if (s_showLoginDialog)
+	{
+		s_showLoginDialog();
+		return;
+	}
+
+	OpenBrowserLogInPage();
 }
 
 bool SlippiUser::UpdateApp()
 {
-#if false//_WIN32
-	auto isoPath = SConfig::GetInstance().m_strFilename;
-
-	std::string path = File::GetExeDirectory() + "/dolphin-slippi-tools.exe";
-	std::string echoMsg = "echo Starting update process. If nothing happens after a few "
-	                      "minutes, you may need to update manually from https://slippi.gg/netplay ...";
-
-	// Check if updater exists, anti-virus sometimes deletes it
-	if (!File::Exists(path))
-	{
-		ERROR_LOG(SLIPPI_ONLINE, "Update requested but updater does not exist.");
-		OSD::AddMessage("Updater cannot be found. Please download the latest Slippi version from slippi.gg.", 30000, 0xFFFF0000);
-		return false;
-	}
-
-	std::string command = "start /b cmd /c " + echoMsg + " && \"" + path + "\" app-update -launch -iso \"" + isoPath +
-	                      "\" -version \"" + scm_slippi_semver_str + "\"";
-	WARN_LOG(SLIPPI, "Executing app update command: %s", command);
-	RunSystemCommand(command);
+	CriticalAlertT("Automatic updates are not currently available for Lylat. Please get the latest update from "
+	               "https://lylat.gg/download.");
 	return true;
-#elif false //defined(__APPLE__)
-	CriticalAlertT(
-		"Automatic updates are not available for standalone Netplay builds on macOS. Please get the latest update from slippi.gg/netplay. "
-		"(The Slippi Launcher has automatic updates on macOS, and you should consider switching to that)"
-	);
-	return false;
-#elif false//
-	const char *appimage_path = getenv("APPIMAGE");
-	const char *appmount_path = getenv("APPDIR");
-	if (!appimage_path)
-	{
-		CriticalAlertT("Automatic updates are not available for non-AppImage Linux builds.");
-		return false;
-	}
-	std::string path(appimage_path);
-	std::string mount_path(appmount_path);
-	std::string command = mount_path + "/usr/bin/appimageupdatetool " + path;
-	WARN_LOG(SLIPPI, "Executing app update command: %s", command.c_str());
-	RunSystemCommand(command);
-	CriticalAlertT("Restart Dolphin to finish the update. If there was an issue, please head over to the Slippi "
-	               "Discord for support.");
-	return true;
-#else
-	CriticalAlertT(
-	    "Automatic updates are not currently available for Lylat. Please get the latest update from https://lylat.gg/download."
-	);
-	return true;
-#endif
 }
 
 void SlippiUser::ListenForLogIn()
@@ -261,17 +212,35 @@ void SlippiUser::LogOut()
 
 	UserInfo emptyUser;
 	isLoggedIn = false;
+	std::lock_guard<std::mutex> lk(userInfoMutex);
 	userInfo = emptyUser;
 }
 
 void SlippiUser::OverwriteLatestVersion(std::string version)
 {
+	std::lock_guard<std::mutex> lk(userInfoMutex);
 	userInfo.latestVersion = version;
 }
 
 SlippiUser::UserInfo SlippiUser::GetUserInfo()
 {
+	std::lock_guard<std::mutex> lk(userInfoMutex);
 	return userInfo;
+}
+
+std::vector<std::string> SlippiUser::GetDefaultChatMessages()
+{
+	RustChatMessages *chatMessages = slprs_user_get_default_messages(slprs_exi_device_ptr);
+	return ConvertChatMessagesFromRust(chatMessages);
+}
+
+std::vector<std::string> SlippiUser::GetUserChatMessages()
+{
+	auto messages = GetUserInfo().chatMessages;
+	if (messages.size() == 16)
+		return messages;
+
+	return GetDefaultChatMessages();
 }
 
 bool SlippiUser::IsLoggedIn()
@@ -281,9 +250,8 @@ bool SlippiUser::IsLoggedIn()
 
 bool SlippiUser::HasSlippiInfo()
 {
-	auto key = GetUserInfo().slippi_playKey;
-	auto uid = GetUserInfo().slippi_uid;
-	return !(key.empty() || uid.empty());
+	auto info = GetUserInfo();
+	return !(info.slippi_playKey.empty() || info.slippi_uid.empty());
 }
 
 void SlippiUser::FileListenThread()
@@ -293,7 +261,8 @@ void SlippiUser::FileListenThread()
 		if (AttemptLogin())
 		{
 			runThread = false;
-			main_frame->RaiseRenderWindow();
+			if (s_onLoggedIn)
+				s_onLoggedIn();
 			break;
 		}
 
@@ -301,15 +270,31 @@ void SlippiUser::FileListenThread()
 	}
 }
 
-inline std::string readString(json obj, std::string key)
+static std::string readString(const json &obj, const std::string &key)
 {
 	auto item = obj.find(key);
-	if (item == obj.end() || item.value().is_null())
+	if (item == obj.end() || !item.value().is_string())
 	{
 		return "";
 	}
 
-	return obj[key];
+	return item.value().get<std::string>();
+}
+
+static std::vector<std::string> readChatMessages(const json &obj)
+{
+	std::vector<std::string> messages;
+	auto item = obj.find("chatMessages");
+	if (item == obj.end() || !item.value().is_array())
+		return messages;
+
+	for (auto &m : item.value())
+	{
+		if (m.is_string())
+			messages.push_back(m.get<std::string>());
+	}
+
+	return messages;
 }
 
 SlippiUser::UserInfo SlippiUser::parseFile(std::string fileContents)
@@ -328,14 +313,15 @@ SlippiUser::UserInfo SlippiUser::parseFile(std::string fileContents)
 	info.playKey = readString(res, "playKey");
 	info.connectCode = readString(res, "connectCode");
 	info.lylatVersion = readString(res, "latestVersion");
-	auto slp = res["slippi"];
-	if(!slp.is_null()) {
-		info.slippi_uid = readString(slp, "uid");
-		info.slippi_playKey = readString(slp, "playKey");
-		info.slippi_connectCode = readString(slp, "connectCode");
-		info.latestVersion = readString(slp, "latestVersion");
+	info.chatMessages = readChatMessages(res);
+	auto slp = res.find("slippi");
+	if (slp != res.end() && slp.value().is_object())
+	{
+		info.slippi_uid = readString(slp.value(), "uid");
+		info.slippi_playKey = readString(slp.value(), "playKey");
+		info.slippi_connectCode = readString(slp.value(), "connectCode");
+		info.latestVersion = readString(slp.value(), "latestVersion");
 	}
-
 
 	return info;
 }
@@ -352,17 +338,17 @@ void SlippiUser::overwriteFromServer()
 		return;
 
 	// Generate URL. If this is a beta version, use the beta endpoint
-	std::string url = URL_START;
+	std::string url = GetLylatOrigin() + "/users/slp";
 	if (scm_slippi_semver_str.find("beta") != std::string::npos)
 	{
 		url = url + "-beta";
 	}
 
-	ERROR_LOG(SLIPPI_ONLINE, "URL: %s", url.c_str());
+	auto uid = GetUserInfo().uid;
 
 	// Perform curl request
 	std::string resp;
-	curl_easy_setopt(m_curl, CURLOPT_URL, (url + "/" + userInfo.uid).c_str());
+	curl_easy_setopt(m_curl, CURLOPT_URL, (url + "/" + uid).c_str());
 	curl_easy_setopt(m_curl, CURLOPT_WRITEDATA, &resp);
 	CURLcode res = curl_easy_perform(m_curl);
 
@@ -376,19 +362,41 @@ void SlippiUser::overwriteFromServer()
 	curl_easy_getinfo(m_curl, CURLINFO_RESPONSE_CODE, &responseCode);
 	if (responseCode != 200)
 	{
-		ERROR_LOG(SLIPPI, "[User] Server responded with non-success status: %d", responseCode);
+		ERROR_LOG(SLIPPI, "[User] Server responded with non-success status: %ld", responseCode);
+		return;
+	}
+
+	auto r = json::parse(resp, nullptr, false);
+	if (r.is_discarded() || !r.is_object())
+	{
+		ERROR_LOG(SLIPPI, "[User] Server response is not a JSON object");
 		return;
 	}
 
 	// Overwrite userInfo with data from server
-	auto r = json::parse(resp, nullptr, false);
-	userInfo.displayName = r.value("displayName", userInfo.displayName);
-	userInfo.lylatVersion = r.value("lylatVersion", userInfo.lylatVersion);
-	auto slp = r["slippi"];
-	if(!slp.is_null()) {
-		userInfo.connectCode = slp.find("connectCode") != slp.end() && !slp["connectCode"].is_null() ? slp.value("connectCode", (std::string) userInfo.connectCode) : "TMP#1234";
-		userInfo.latestVersion = slp.find("latestVersion") != slp.end() && !slp["latestVersion"].is_null() ? slp.value("latestVersion", (std::string) userInfo.latestVersion) : userInfo.lylatVersion;
-	} else {
+	std::lock_guard<std::mutex> lk(userInfoMutex);
+	std::string displayName = readString(r, "displayName");
+	if (!displayName.empty())
+		userInfo.displayName = displayName;
+	std::string lylatVersion = readString(r, "lylatVersion");
+	if (!lylatVersion.empty())
+		userInfo.lylatVersion = lylatVersion;
+	auto chatMessages = readChatMessages(r);
+	if (chatMessages.size() == 16)
+		userInfo.chatMessages = chatMessages;
+
+	// The connect code shown in game is the linked Slippi one. Accounts with no Slippi
+	// link get a placeholder, as before the merge.
+	auto slp = r.find("slippi");
+	if (slp != r.end() && slp.value().is_object())
+	{
+		std::string code = readString(slp.value(), "connectCode");
+		std::string version = readString(slp.value(), "latestVersion");
+		userInfo.connectCode = code.empty() ? "TMP#1234" : code;
+		userInfo.latestVersion = version.empty() ? userInfo.lylatVersion : version;
+	}
+	else
+	{
 		userInfo.connectCode = "TMP#1234";
 		userInfo.latestVersion = userInfo.lylatVersion;
 	}

@@ -781,6 +781,9 @@
     <ClCompile Include="Slippi\SlippiUser.cpp">
       <Filter>Slippi</Filter>
     </ClCompile>
+    <ClCompile Include="Slippi\SlippiGameReporter.cpp">
+      <Filter>Slippi</Filter>
+    </ClCompile>
     <ClCompile Include="Slippi\SlippiPlayback.cpp">
       <Filter>Slippi</Filter>
     </ClCompile>
@@ -788,9 +791,6 @@
       <Filter>Slippi</Filter>
     </ClCompile>
     <ClCompile Include="..\DolphinWX\PlaybackSlider.cpp">
-      <Filter>Slippi</Filter>
-    </ClCompile>
-    <ClCompile Include="Slippi\SlippiGameReporter.cpp">
       <Filter>Slippi</Filter>
     </ClCompile>
     <ClCompile Include="Slippi\SlippiDirectCodes.cpp">
@@ -1355,6 +1355,9 @@
     <ClInclude Include="Slippi\SlippiUser.h">
       <Filter>Slippi</Filter>
     </ClInclude>
+    <ClInclude Include="Slippi\SlippiGameReporter.h">
+      <Filter>Slippi</Filter>
+    </ClInclude>
     <ClInclude Include="Slippi\SlippiTimer.h">
       <Filter>Slippi</Filter>
     </ClInclude>
@@ -1364,13 +1367,13 @@
     <ClInclude Include="Slippi\SlippiPlayback.h">
       <Filter>Slippi</Filter>
     </ClInclude>
-    <ClInclude Include="Slippi\SlippiGameReporter.h">
-      <Filter>Slippi</Filter>
-    </ClInclude>
     <ClInclude Include="Slippi\SlippiPremadeText.h">
       <Filter>Slippi</Filter>
     </ClInclude>
     <ClInclude Include="Slippi\SlippiDirectCodes.h">
+      <Filter>Slippi</Filter>
+    </ClInclude>
+    <ClInclude Include="Slippi\SlippiExiTypes.h">
       <Filter>Slippi</Filter>
     </ClInclude>
   </ItemGroup>

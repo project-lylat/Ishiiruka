@@ -4,9 +4,6 @@
 #include <queue>
 #include <string>
 
-#include <nlohmann/json.hpp>
-using json = nlohmann::json;
-
 class SlippiReplayComm
 {
   public:
@@ -29,9 +26,10 @@ class SlippiReplayComm
 		int endFrame = INT_MAX;
 		bool outputOverlayFiles;
 		bool isRealTimeMode;
-		bool shouldResync; // If true, logic will attempt to resync games
+		bool shouldResync;                 // If true, logic will attempt to resync games
 		std::string rollbackDisplayMethod; // off, normal, visible
 		std::string commandId;
+		std::string gameStation;
 		std::queue<WatchSettings> queue;
 	} CommSettings;
 
@@ -50,7 +48,6 @@ class SlippiReplayComm
 	std::string getReplayPath();
 
 	std::string configFilePath;
-	json fileData;
 	std::string previousReplayLoaded;
 	std::string previousCommandId;
 	int previousIndex;
