@@ -74,6 +74,8 @@
 
 #include "Core/Slippi/SlippiPlayback.h"
 #include "Core/Slippi/SlippiReplayComm.h"
+#include "Core/Slippi/SlippiUser.h"
+#include "DolphinWX/SlippiQrLoginDialog.h"
 
 extern std::unique_ptr<SlippiPlaybackStatus> g_playbackStatus;
 extern std::unique_ptr<SlippiReplayComm> g_replayComm;
@@ -504,10 +506,21 @@ CFrame::CFrame(wxFrame *parent, wxWindowID id, const wxString &title, wxRect geo
 #ifdef _WIN32
 	SetConsoleCtrlHandler(s_ctrl_handler, TRUE);
 #endif
+
+	// Lylat: the in-game login shows the QR sign-in dialog. Both hooks are called from
+	// emulation threads, so they hop to the main thread.
+	SlippiUser::s_showLoginDialog = [this] { CallAfter([this] { ShowSlippiQrLogin(); }); };
+	SlippiUser::s_onLoggedIn = [this] { CallAfter([this] { OnSlippiLoggedIn(); }); };
+	// Test aid: open the QR sign-in dialog at start (used for screenshots, no game needed).
+	if (getenv("LYLAT_QR_LOGIN_AT_START"))
+		CallAfter([this] { ShowSlippiQrLogin(); });
 }
 // Destructor
 CFrame::~CFrame()
 {
+	SlippiUser::s_showLoginDialog = nullptr;
+	SlippiUser::s_onLoggedIn = nullptr;
+
 	Wiimote::Shutdown();
 	Keyboard::Shutdown();
 	Pad::Shutdown();

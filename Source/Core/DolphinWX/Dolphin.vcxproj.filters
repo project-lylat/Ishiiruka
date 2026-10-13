@@ -41,6 +41,8 @@
     <ClCompile Include="WxEventUtils.cpp" />
     <ClCompile Include="WXInputBase.cpp" />
     <ClCompile Include="WxUtils.cpp" />
+    <ClCompile Include="SlippiQrLoginDialog.cpp" />
+    <ClCompile Include="$(ExternalsDir)qrcodegen\qrcodegen.c" />
     <ClCompile Include="Cheats\CheatsWindow.cpp">
       <Filter>GUI\Cheats</Filter>
     </ClCompile>
@@ -269,6 +271,7 @@
     <ClInclude Include="WxEventUtils.h" />
     <ClInclude Include="WXInputBase.h" />
     <ClInclude Include="WxUtils.h" />
+    <ClInclude Include="SlippiQrLoginDialog.h" />
     <ClInclude Include="Cheats\CheatSearchTab.h">
       <Filter>GUI\Cheats</Filter>
     </ClInclude>

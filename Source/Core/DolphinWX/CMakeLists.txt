@@ -77,7 +77,12 @@ set(GUI_SRCS
 	VideoConfigDiag.cpp
 	WxEventUtils.cpp
 	WXInputBase.cpp
-	WxUtils.cpp)
+	WxUtils.cpp
+	SlippiQrLoginDialog.cpp
+	${CMAKE_SOURCE_DIR}/Externals/qrcodegen/qrcodegen.c)
+
+# Lylat: the QR sign-in dialog includes "qrcodegen/qrcodegen.h".
+include_directories(${CMAKE_SOURCE_DIR}/Externals)
 
 set(NOGUI_SRCS Main.cpp MainNoGUI.cpp)
 

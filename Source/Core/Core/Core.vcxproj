@@ -337,6 +337,7 @@
     <ClCompile Include="Slippi\SlippiSpectate.cpp" />
     <ClCompile Include="Slippi\SlippiUser.cpp" />
     <ClCompile Include="Slippi\SlippiGameReporter.cpp" />
+    <ClCompile Include="Slippi\LylatDeviceLogin.cpp" />
     <ClCompile Include="State.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -543,6 +544,7 @@
     <ClInclude Include="Slippi\SlippiSpectate.h" />
     <ClInclude Include="Slippi\SlippiUser.h" />
     <ClInclude Include="Slippi\SlippiGameReporter.h" />
+    <ClInclude Include="Slippi\LylatDeviceLogin.h" />
     <ClInclude Include="State.h" />
   </ItemGroup>
   <ItemGroup>

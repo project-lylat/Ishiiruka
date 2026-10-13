@@ -201,6 +201,7 @@ set(SRCS	ActionReplay.cpp
 			Slippi/SlippiTimer.cpp
 			Slippi/SlippiUser.cpp
 			Slippi/SlippiGameReporter.cpp
+			Slippi/LylatDeviceLogin.cpp
 			Slippi/SlippiDirectCodes.cpp
 			)
 

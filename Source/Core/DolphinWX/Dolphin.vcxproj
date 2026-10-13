@@ -189,6 +189,11 @@
     <ClCompile Include="WxEventUtils.cpp" />
     <ClCompile Include="WXInputBase.cpp" />
     <ClCompile Include="WxUtils.cpp" />
+    <ClCompile Include="SlippiQrLoginDialog.cpp" />
+    <ClCompile Include="$(ExternalsDir)qrcodegen\qrcodegen.c">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <ForcedIncludeFiles></ForcedIncludeFiles>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Cheats\ActionReplayCodesPanel.h" />
@@ -267,6 +272,7 @@
     <ClInclude Include="WxEventUtils.h" />
     <ClInclude Include="WXInputBase.h" />
     <ClInclude Include="WxUtils.h" />
+    <ClInclude Include="SlippiQrLoginDialog.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="CMakeLists.txt" />

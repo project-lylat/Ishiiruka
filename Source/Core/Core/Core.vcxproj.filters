@@ -784,6 +784,9 @@
     <ClCompile Include="Slippi\SlippiGameReporter.cpp">
       <Filter>Slippi</Filter>
     </ClCompile>
+    <ClCompile Include="Slippi\LylatDeviceLogin.cpp">
+      <Filter>Slippi</Filter>
+    </ClCompile>
     <ClCompile Include="Slippi\SlippiPlayback.cpp">
       <Filter>Slippi</Filter>
     </ClCompile>
@@ -1356,6 +1359,9 @@
       <Filter>Slippi</Filter>
     </ClInclude>
     <ClInclude Include="Slippi\SlippiGameReporter.h">
+      <Filter>Slippi</Filter>
+    </ClInclude>
+    <ClInclude Include="Slippi\LylatDeviceLogin.h">
       <Filter>Slippi</Filter>
     </ClInclude>
     <ClInclude Include="Slippi\SlippiTimer.h">
