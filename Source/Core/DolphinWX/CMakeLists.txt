@@ -78,11 +78,7 @@ set(GUI_SRCS
 	WxEventUtils.cpp
 	WXInputBase.cpp
 	WxUtils.cpp
-	SlippiQrLoginDialog.cpp
-	${CMAKE_SOURCE_DIR}/Externals/qrcodegen/qrcodegen.c)
-
-# Lylat: the QR sign-in dialog includes "qrcodegen/qrcodegen.h".
-include_directories(${CMAKE_SOURCE_DIR}/Externals)
+	SlippiQrLoginDialog.cpp)
 
 set(NOGUI_SRCS Main.cpp MainNoGUI.cpp)
 
@@ -97,7 +93,8 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
 	set(WXLIBS ${WXLIBS} dl)
 endif()
 
-list(APPEND LIBS core uicommon)
+# qrcodegen: the QR sign-in dialog (Externals/qrcodegen, which provides its include path).
+list(APPEND LIBS core uicommon qrcodegen)
 
 if(APPLE)
 	if(wxWidgets_FOUND)

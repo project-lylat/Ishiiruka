@@ -684,6 +684,7 @@ include_directories(Externals/Bochs_disasm)
 add_subdirectory(Externals/glslang)
 
 add_subdirectory(Externals/SlippiLib)
+add_subdirectory(Externals/qrcodegen)
 include_directories(Externals/SlippiLib)
 include_directories(Externals/nlohmann)
 add_subdirectory(Externals/semver)
