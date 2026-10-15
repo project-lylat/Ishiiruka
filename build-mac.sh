@@ -17,19 +17,11 @@ else
         echo "Using Netplay build config"
 fi
 
-if [[ -z "${CERTIFICATE_MACOS_APPLICATION}" ]]
-    then
-        echo "Building without code signing"
-else
-        echo "Building with code signing"
-        CMAKE_FLAGS+=' -DMACOS_CODE_SIGNING="ON"'
-fi
-
 # Move into the build directory, run CMake, and compile the project
 mkdir -p build
 pushd build
 cmake ${CMAKE_FLAGS} ..
-make -j7
+make -j$(sysctl -n hw.ncpu)
 popd
 
 # Copy the Sys folder in

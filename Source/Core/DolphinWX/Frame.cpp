@@ -6,6 +6,7 @@
 
 #include <atomic>
 #include <cstddef>
+#include <cstdlib>
 #include <fstream>
 #include <string>
 #include <utility>
@@ -73,7 +74,13 @@
 #include "VideoCommon/VideoConfig.h"
 
 #include "Core/Slippi/SlippiPlayback.h"
+#include "Core/Slippi/SlippiReplayComm.h"
+#include "Common/Logging/Log.h"
+#include "Core/Slippi/SlippiUser.h"
+#include "DolphinWX/SlippiQrLoginDialog.h"
+
 extern std::unique_ptr<SlippiPlaybackStatus> g_playbackStatus;
+extern std::unique_ptr<SlippiReplayComm> g_replayComm;
 
 #if defined(HAVE_X11) && HAVE_X11
 // X11Utils nastiness that's only used here
@@ -501,10 +508,28 @@ CFrame::CFrame(wxFrame *parent, wxWindowID id, const wxString &title, wxRect geo
 #ifdef _WIN32
 	SetConsoleCtrlHandler(s_ctrl_handler, TRUE);
 #endif
+
+	// Lylat: the in-game login shows the QR sign-in dialog. Both hooks are called from
+	// emulation threads, so they hop to the main thread.
+	SlippiUser::s_showLoginDialog = [this] { CallAfter([this] { ShowSlippiQrLogin(); }); };
+	SlippiUser::s_onLoggedIn = [this] { CallAfter([this] { OnSlippiLoggedIn(); }); };
+	// Test aid: open the QR sign-in dialog at start (used for screenshots, no game needed).
+	// It refuses to run against the default (production) origin: set [Core] LylatServerOrigin
+	// to a local server first.
+	if (std::getenv("LYLAT_QR_LOGIN_AT_START"))
+	{
+		if (SlippiUser::GetLylatOrigin() == "https://lylat.gg")
+			WARN_LOG(SLIPPI_ONLINE, "LYLAT_QR_LOGIN_AT_START ignored: LylatServerOrigin is the production server");
+		else
+			CallAfter([this] { ShowSlippiQrLogin(); });
+	}
 }
 // Destructor
 CFrame::~CFrame()
 {
+	SlippiUser::s_showLoginDialog = nullptr;
+	SlippiUser::s_onLoggedIn = nullptr;
+
 	Wiimote::Shutdown();
 	Keyboard::Shutdown();
 	Pad::Shutdown();
@@ -702,6 +727,13 @@ void CFrame::UpdateTitle(const std::string &str)
 	if (SConfig::GetInstance().bRenderToMain && SConfig::GetInstance().m_InterfaceStatusbar)
 	{
 		GetStatusBar()->SetStatusText(str, 0);
+
+		if (g_replayComm->getSettings().gameStation != "") {
+			std::string titleStr = StringFromFormat("%s | %s", scm_rev_str.c_str(), g_replayComm->getSettings().gameStation.c_str());
+			m_RenderFrame->SetTitle(titleStr);
+			return;
+		}
+		
 		m_RenderFrame->SetTitle(scm_rev_str);
 	}
 	else
@@ -1247,6 +1279,7 @@ void CFrame::PollHotkeys(wxTimerEvent &event)
 
 void CFrame::ParseHotkeys()
 {
+	bool isSlippiOnline = IsOnline();
 	for (int i = 0; i < NUM_HOTKEYS; i++)
 	{
 		switch (i)
@@ -1452,8 +1485,13 @@ void CFrame::ParseHotkeys()
 		OSDChoice = 4;
 		g_Config.bDisableFog = !g_Config.bDisableFog;
 	}
-	Core::SetIsThrottlerTempDisabled(IsHotkey(HK_TOGGLE_THROTTLE, true));
-	if (IsHotkey(HK_DECREASE_EMULATION_SPEED) && !IsOnline())
+
+	if (!isSlippiOnline)
+	{
+		Core::SetIsThrottlerTempDisabled(IsHotkey(HK_TOGGLE_THROTTLE, true));
+	}
+
+	if (IsHotkey(HK_DECREASE_EMULATION_SPEED) && !isSlippiOnline)
 	{
 		OSDChoice = 5;
 
@@ -1467,7 +1505,7 @@ void CFrame::ParseHotkeys()
 		if (SConfig::GetInstance().m_EmulationSpeed >= 0.95f && SConfig::GetInstance().m_EmulationSpeed <= 1.05f)
 			SConfig::GetInstance().m_EmulationSpeed = 1.0f;
 	}
-	if (IsHotkey(HK_INCREASE_EMULATION_SPEED) && !IsOnline())
+	if (IsHotkey(HK_INCREASE_EMULATION_SPEED) && !isSlippiOnline)
 	{
 		OSDChoice = 5;
 
@@ -1481,7 +1519,7 @@ void CFrame::ParseHotkeys()
 	{
 		State::Save(m_saveSlot);
 	}
-	if (IsHotkey(HK_LOAD_STATE_SLOT_SELECTED))
+	if (IsHotkey(HK_LOAD_STATE_SLOT_SELECTED) && !isSlippiOnline)
 	{
 		State::Load(m_saveSlot);
 	}

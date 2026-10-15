@@ -63,6 +63,10 @@ namespace Slippi {
     float rTrigger;
 
     uint8_t joystickXRaw;
+    uint8_t joystickYRaw;
+
+    uint8_t cstickXRaw;
+    uint8_t cstickYRaw;
   } PlayerFrameData;
 
   typedef struct FrameData {
@@ -136,7 +140,7 @@ namespace Slippi {
     int32_t GetLastFinalizedFrame();
     int32_t GetLatestIndex();
     GameSettings* GetSettings();
-    uint8_t getGameEndMethod();
+    uint8_t GetGameEndMethod();
     bool DoesPlayerExist(int8_t port);
     bool IsProcessingComplete();
   private:

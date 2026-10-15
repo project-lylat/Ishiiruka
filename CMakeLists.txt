@@ -306,7 +306,7 @@ if(APPLE)
 	# Note that the SDK determines the maximum version of which optional
 	# features can be used, not the minimum required version to run.
 	set(OSX_MIN_VERSION "10.13")
-	set(CMAKE_OSX_SYSROOT "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk")
+	# set(CMAKE_OSX_SYSROOT "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk")
 	set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13")
 	set(TARGET_FLAGS "${TARGET_FLAGS} -mmacosx-version-min=${OSX_MIN_VERSION}")
 	# Do not warn about frameworks that are not available on all architectures.
@@ -578,7 +578,7 @@ if(USE_X11)
 
 	pkg_check_modules(XINPUT2 REQUIRED xi>=1.5.0)
 endif()
-if(ENCODE_FRAMEDUMPS)
+if(ENCODE_FRAMEDUMPS AND NOT APPLE)
 	check_libav()
 	if(LIBAV_FOUND)
 		LIST(APPEND LIBS ${LIBAV_LDFLAGS})
@@ -586,14 +586,17 @@ if(ENCODE_FRAMEDUMPS)
 
 endif()
 
+message("Using static Corrosion from Externals for Rust linking support")
+add_subdirectory(Externals/corrosion)
+
 if(NOT ANDROID)
 	set(PORTAUDIO_FOUND TRUE)
 	add_definitions(-DHAVE_PORTAUDIO=1)
 
 	if(NOT APPLE)
-	    set(CMAKE_REQUIRED_LIBRARIES portaudio)
-	    CHECK_CXX_SOURCE_RUNS(
-		    "#include <portaudio.h>
+		set(CMAKE_REQUIRED_LIBRARIES portaudio)
+		CHECK_CXX_SOURCE_RUNS(
+			"#include <portaudio.h>
 			int main(int argc, char **argv)
 			{ if(Pa_GetVersion() >= 1890) return 0; else return 1; }"
 			SYSTEM_PORTAUDIO)
@@ -931,13 +934,7 @@ endif()
 
 if(NOT DISABLE_WX)
 	include(FindwxWidgets OPTIONAL)
-
-	# This is increasingly not touched, but the clarity is probably beneficial to keep around.
-	if(APPLE)
-		FIND_PACKAGE(wxWidgets COMPONENTS core aui adv webview)
-	else()
-		FIND_PACKAGE(wxWidgets COMPONENTS core aui adv)
-	endif()
+    FIND_PACKAGE(wxWidgets COMPONENTS core aui adv)
 
 	if(_ARCH_32)
 		add_definitions(-DwxSIZE_T_IS_UINT)

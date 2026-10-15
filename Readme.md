@@ -22,14 +22,26 @@ Please read the [FAQ](https://dolphin-emu.org/docs/faq/) before using Dolphin.
     * A reasonably modern graphics card (Direct3D 10.0 / OpenGL 3.0).
     * A graphics card that supports Direct3D 11 / OpenGL 4.4 is recommended.
 
+## General Requirements
+This fork includes a [Rust submodule](https://github.com/project-slippi/slippi-rust-extensions) that needs to be built and linked to the final executable.
+First, pull in the submodule by running
+```
+git submodule update --init --recursive
+```
+then install the Rust compiler for your current system; to do this, simply visit 
+[rustup.rs](https://rustup.rs). Once installed, both CMake and Visual Studio should be able to automatically handle the rest for you.
+
 ## Building for Windows
-Open the solution file `Source/Dolphin.sln` to build Dolphin on Windows using [Visual Studio 2019](https://visualstudio.microsoft.com/thank-you-downloading-visual-studio/?sku=Community&rel=16).
-Other compilers might be
-able to build Dolphin on Windows but have not been tested and are not
-recommended to be used. Git and Windows 10 SDK 10.0.17763.0 must be installed. You can [download it here](https://developer.microsoft.com/en-us/windows/downloads/sdk-archive/). Once the solution is loaded, change the Configuration to `Release x64`, this can be done changed in the top toolbar.
+Open the solution file `Source/Dolphin.sln` to build Dolphin on Windows using Visual Studio 2019. The installer for community edition appears to no longer be on the official website but this [direct link](https://aka.ms/vs/16/release/vs_community.exe) still works for now. Other compilers might be able to build Dolphin on Windows but have not been tested and are not recommended to be used. 
 
+There are a few additional things you will need to install:
+1. When installing VS2019 or afterwards using the modify tool, you will need to install the MSVC v141 - VS 2017 C++ x64/x86 build tools.
+2. Windows 10 SDK 10.0.17763.0 must be installed. You can [download it here](https://developer.microsoft.com/en-us/windows/downloads/sdk-archive/).
+3. You also need the June 2010 DirectX SDK, you can [download it here](https://github.com/project-slippi/Ishiiruka/releases/download/v2.2.5/DXSDK_Jun10.exe). You may have issues installing this, look at [this comment](https://stackoverflow.com/a/9401911) for how to fix it. Not sure everything in it is a hard requirement.
+4. You will need to [install rust](https://rust-lang.org/tools/install/) on your system.
+5. You will need to [install git](https://git-scm.com/install/windows) on your system.
 
-You also need the June 2010 DirectX SDK, you can [download it here](https://github.com/project-slippi/Ishiiruka/releases/download/v2.2.5/DXSDK_Jun10.exe). You will most likely have issues installing this, look at [this comment](https://stackoverflow.com/a/9401911) for how to fix it. Not sure everything in it is a hard requirement.
+Once the solution is loaded, change the Configuration to `Release x64`, this can be done changed in the top toolbar.
 
 If you have trouble with some `.lib` files missing, right click the Externals directory and click rebuild.
 

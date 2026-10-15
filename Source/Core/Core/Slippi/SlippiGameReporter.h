@@ -13,19 +13,21 @@
 #include <thread>
 #include <vector>
 
-#define SLIPPI_REPORT_URL "https://rankings-dot-slippi.uc.r.appspot.com/report"
-
+// Lylat: reports games that were routed to the Lylat matchmaking server. They are posted
+// to the custom reporting URL (SlippiCustomMatchmakingReportingURL) with the Lylat account.
+// Games routed to Slippi are reported by the Rust game reporter instead.
 class SlippiGameReporter
 {
   public:
 	struct PlayerReport
 	{
+		std::string uid;
 		float damageDone;
 		u8 stocksRemaining;
 	};
 	struct GameReport
 	{
-        SlippiMatchmaking::OnlinePlayMode mode = SlippiMatchmaking::OnlinePlayMode::UNRANKED;
+		SlippiMatchmaking::OnlinePlayMode mode = SlippiMatchmaking::OnlinePlayMode::UNRANKED;
 		u32 durationFrames = 0;
 		std::vector<PlayerReport> players;
 	};
@@ -34,17 +36,15 @@ class SlippiGameReporter
 	~SlippiGameReporter();
 
 	void StartReport(GameReport report);
-	void StartNewSession(std::vector<std::string> playerUids);
+	void StartNewSession();
 	void ReportThreadHandler();
 
   protected:
-	std::string reportUrl = SLIPPI_REPORT_URL;
 	CURL *m_curl = nullptr;
 	struct curl_slist *m_curlHeaderList = nullptr;
 	bool isMex = false;
 
 	u32 gameIndex = 1;
-	std::vector<std::string> playerUids;
 
 	SlippiUser *m_user;
 	Common::FifoQueue<GameReport, false> gameReportQueue;

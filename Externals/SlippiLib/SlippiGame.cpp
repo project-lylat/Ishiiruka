@@ -227,12 +227,15 @@ namespace Slippi {
     p.lTrigger = readFloat(data, idx, maxSize, 0);
     p.rTrigger = readFloat(data, idx, maxSize, 0);
 
-    if (asmEvents[EVENT_PRE_FRAME_UPDATE] >= 59) {
-      p.joystickXRaw = readByte(data, idx, maxSize, 0);
-    }
+    p.joystickXRaw = readByte(data, idx, maxSize, 0);
 
     uint32_t noPercent = 0xFFFFFFFF;
     p.percent = readFloat(data, idx, maxSize, *(float*)(&noPercent));
+
+    p.joystickYRaw = readByte(data, idx, maxSize, 0);
+
+    p.cstickXRaw = readByte(data, idx, maxSize, 0);
+    p.cstickYRaw = readByte(data, idx, maxSize, 0);
 
     // Add player data to frame
     std::unordered_map<uint8_t, PlayerFrameData>* target;
@@ -471,7 +474,7 @@ namespace Slippi {
           // Transform this message into a different message
           command = data[SPLIT_MESSAGE_INTERNAL_DATA_LEN + 2];
           data = &splitMessageBuf[0];
-          payloadSize = asmEvents[command];
+          payloadSize = splitMessageBuf.size();
           shouldResetSplitMessageBuf = true;
         }
       }
@@ -607,7 +610,7 @@ namespace Slippi {
     return game->settings.players.find(port) != game->settings.players.end();
   }
 
-  uint8_t SlippiGame::getGameEndMethod() {
+  uint8_t SlippiGame::GetGameEndMethod() {
       return game->winCondition;
   }
 }

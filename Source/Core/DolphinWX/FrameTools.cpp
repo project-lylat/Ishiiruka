@@ -85,6 +85,7 @@
 #include "VideoCommon/VideoConfig.h"
 
 #include "Common/Logging/Log.h"
+#include "DolphinWX/SlippiQrLoginDialog.h"
 
 #if defined(__APPLE__)
 #include <IOKit/pwr_mgt/IOPMLib.h>
@@ -270,25 +271,26 @@ void CFrame::OpenGeneralConfiguration(wxWindowID tab_id)
 	m_main_config_dialog->SetFocus();
 }
 
-// Only macOS has WebView support.
-#ifdef __APPLE__
-// Actually create and show the wxWebView control.
-void CFrame::ShowSlippiAuthenticationDialog()
+// Lylat: the QR sign-in dialog. Pressing Login again asks for a fresh code.
+void CFrame::ShowSlippiQrLogin()
 {
-    m_slippi_auth_dialog = new SlippiAuthWebView(this, m_slippi_auth_dialog_url);
-    m_slippi_auth_dialog->Show();
-    m_slippi_auth_dialog->SetFocus();
+	if (!m_slippi_qr_login_dialog)
+		m_slippi_qr_login_dialog = new SlippiQrLoginDialog(this);
+	m_slippi_qr_login_dialog->Start();
+	if (!m_slippi_qr_login_dialog || m_slippi_qr_login_dialog->IsBeingDeleted())
+		return;
+	m_slippi_qr_login_dialog->Show();
+	m_slippi_qr_login_dialog->Raise();
+	m_slippi_qr_login_dialog->SetFocus();
 }
 
-// This is the entry point for our webview dialog. `CallAfter` is used
-// as the call could come from a background thread, and `wxWebView` needs to
-// be instantiated on the main thread, which this does.
-void CFrame::OpenSlippiAuthenticationDialog(std::string url)
+// Lylat: the game picked up a new account file (QR sign-in or browser login).
+void CFrame::OnSlippiLoggedIn()
 {
-	m_slippi_auth_dialog_url = url;
-    CallAfter(&CFrame::ShowSlippiAuthenticationDialog);
+	if (m_slippi_qr_login_dialog)
+		m_slippi_qr_login_dialog->OnGameLoggedIn();
+	RaiseRenderWindow();
 }
-#endif
 
 // Menu items
 

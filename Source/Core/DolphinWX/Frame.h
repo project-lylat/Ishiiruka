@@ -14,6 +14,7 @@
 #include <wx/panel.h>
 #include <wx/stattext.h>
 #include <wx/timer.h>
+#include <wx/weakref.h>
 
 #include "Common/CommonTypes.h"
 #include "Common/Event.h"
@@ -21,10 +22,6 @@
 #include "Core/Slippi/SlippiTimer.h"
 #include "DolphinWX/Globals.h"
 #include "DolphinWX/PlaybackSlider.h"
-
-#ifdef __APPLE__
-#include "DolphinWX/SlippiAuthWebView/SlippiAuthWebView.h"
-#endif
 
 #include "InputCommon/GCPadStatus.h"
 
@@ -40,6 +37,7 @@ class CLogWindow;
 class FifoPlayerDlg;
 class LogConfigWindow;
 class NetPlaySetupFrame;
+class SlippiQrLoginDialog;
 class TASInputDlg;
 class wxCheatsWindow;
 
@@ -122,13 +120,11 @@ public:
 	void ToggleDisplayMode(bool bFullscreen);
 	void ToggleScreenSaver(bool enable);
 
-#ifdef __APPLE__
-    void OpenSlippiAuthenticationDialog(std::string url);
-#endif
-
 	static void ConnectWiimote(int wm_idx, bool connect);
 	void UpdateTitle(const std::string& str);
 	void OpenGeneralConfiguration(wxWindowID tab_id = wxID_ANY);
+	// Lylat: the QR sign-in dialog (main thread only).
+	void ShowSlippiQrLogin();
 
 	const CGameListCtrl* GetGameListCtrl() const;
 	wxMenuBar* GetMenuBar() const override;
@@ -161,11 +157,8 @@ public:
 private:
 	CGameListCtrl* m_GameListCtrl = nullptr;
 	CConfigMain* m_main_config_dialog = nullptr;
-
-#ifdef __APPLE__
-    SlippiAuthWebView* m_slippi_auth_dialog = nullptr;
-	std::string m_slippi_auth_dialog_url;
-#endif
+	wxWeakRef<SlippiQrLoginDialog> m_slippi_qr_login_dialog;
+	void OnSlippiLoggedIn();
 
 	wxPanel* m_Panel = nullptr;
 	CRenderFrame* m_RenderFrame = nullptr;
@@ -206,10 +199,6 @@ private:
 	void BindMenuBarEvents();
 	void BindDebuggerMenuBarEvents();
 	void BindDebuggerMenuBarUpdateEvents();
-
-#ifdef __APPLE__
-    void ShowSlippiAuthenticationDialog();
-#endif
 
 	wxToolBar* OnCreateToolBar(long style, wxWindowID id, const wxString& name) override;
 	wxMenuBar* CreateMenuBar() const;

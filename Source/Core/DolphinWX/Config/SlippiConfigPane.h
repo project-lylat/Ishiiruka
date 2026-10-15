@@ -8,6 +8,8 @@
 #include <wx/panel.h>
 #include <wx/textctrl.h>
 
+#include "DolphinWX/DolphinSlider.h"
+
 enum TEXIDevices : int;
 
 class wxButton;
@@ -44,6 +46,10 @@ class SlippiNetplayConfigPane final : public wxPanel
 	void OnQuickChatChanged(wxCommandEvent &event);
 	void OnReduceTimingDispersionToggle(wxCommandEvent &event);
 	void PopulateEnableChatChoiceBox();
+	void OnToggleJukeboxEnabled(wxCommandEvent &event);
+	void OnJukeboxVolumeUpdate(wxCommandEvent &event);
+	void OnToggleShowPlayerRank(wxCommandEvent &event);
+	void OnToggleShowOpponentRank(wxCommandEvent &event);
 
 	wxArrayString m_slippi_enable_quick_chat_strings;
 
@@ -65,6 +71,13 @@ class SlippiNetplayConfigPane final : public wxPanel
 	wxTextCtrl *m_slippi_custom_mm_reporting_host_input;
 
 	wxCheckBox *m_reduce_timing_dispersion_checkbox;
+
+	wxCheckBox *m_slippi_show_player_rank;
+	wxCheckBox *m_slippi_show_opponent_rank;
+
+	wxCheckBox *m_slippi_jukebox_enabled_checkbox;
+	DolphinSlider *m_slippi_jukebox_volume_slider;
+	wxStaticText *m_jukebox_volume_text;
 };
 
 class SlippiPlaybackConfigPane final : public wxPanel
@@ -79,7 +92,11 @@ class SlippiPlaybackConfigPane final : public wxPanel
 
 	wxStaticText *m_slippi_delay_frames_txt;
 	wxTextCtrl *m_slippi_netplay_lan_ip_ctrl;
+	wxCheckBox *m_replay_regenerate_checkbox;
+	wxDirPickerCtrl *m_replay_directory_picker;
 	wxCheckBox *m_display_frame_index;
 
 	void OnDisplayFrameIndexToggle(wxCommandEvent &event);
+	void OnReplayRegenerateToggle(wxCommandEvent &event);
+	void OnReplayDirChanged(wxCommandEvent &event);
 };

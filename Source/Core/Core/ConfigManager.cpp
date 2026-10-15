@@ -279,10 +279,13 @@ void SConfig::SaveCoreSettings(IniFile &ini)
 	core->Set("RSHACK", bRSHACK);
 	core->Set("Latency", iLatency);
 	core->Set("ReduceTimingDispersion", bReduceTimingDispersion);
+	core->Set("SlippiJukeboxEnabled", bSlippiJukeboxEnabled);
+	core->Set("SlippiJukeboxVolume", iSlippiJukeboxVolume);
 	core->Set("SlippiOnlineDelay", m_slippiOnlineDelay);
 	core->Set("SlippiEnableSpectator", m_enableSpectator);
 	core->Set("SlippiSpectatorLocalPort", m_spectator_local_port);
 	core->Set("SlippiSaveReplays", m_slippiSaveReplays);
+	core->Set("SlippiRegenerateReplays", m_slippiRegenerateReplays);
 	core->Set("SlippiEnableQuickChat", m_slippiEnableQuickChat);
 	core->Set("SlippiForceNetplayPort", m_slippiForceNetplayPort);
 	core->Set("SlippiNetplayPort", m_slippiNetplayPort);
@@ -291,9 +294,13 @@ void SConfig::SaveCoreSettings(IniFile &ini)
 	core->Set("SlippiEnableCustomMatchmakingServers", m_slippiCustomMMEnabled);
 	core->Set("SlippiCustomMatchmakingServerURL", m_slippiCustomMMServerURL);
 	core->Set("SlippiCustomMatchmakingReportingURL", m_slippiCustomMMReportingURL);
+	core->Set("LylatServerOrigin", m_lylatServerOrigin);
 	core->Set("SlippiReplayMonthFolders", m_slippiReplayMonthFolders);
 	core->Set("SlippiReplayDir", m_strSlippiReplayDir);
+	core->Set("SlippiReplayRegenerateDir", m_strSlippiRegenerateReplayDir);
 	core->Set("SlippiPlaybackDisplayFrameIndex", m_slippiEnableFrameIndex);
+	core->Set("SlippiPlayerRankDisplay", bSlippiPlayerRankDisplay);
+	core->Set("SlippiOpponentRankDisplay", bSlippiOpponentRankDisplay);
 	core->Set("BlockingPipes", m_blockingPipes);
 	core->Set("MemcardAPath", m_strMemoryCardA);
 	core->Set("MemcardBPath", m_strMemoryCardB);
@@ -623,10 +630,13 @@ void SConfig::LoadCoreSettings(IniFile &ini)
 	core->Get("RSHACK", &bRSHACK, false);
 	core->Get("Latency", &iLatency, 0);
 	core->Get("ReduceTimingDispersion", &bReduceTimingDispersion, false);
+	core->Get("SlippiJukeboxEnabled", &bSlippiJukeboxEnabled, true);
+	core->Get("SlippiJukeboxVolume", &iSlippiJukeboxVolume, 100);
 	core->Get("SlippiEnableSpectator", &m_enableSpectator, true);
 	core->Get("SlippiSpectatorLocalPort", &m_spectator_local_port, 51441);
 	core->Get("SlippiOnlineDelay", &m_slippiOnlineDelay, 2);
 	core->Get("SlippiSaveReplays", &m_slippiSaveReplays, true);
+	core->Get("SlippiRegenerateReplays", &m_slippiRegenerateReplays, false);
 	core->Get("SlippiEnableQuickChat", &m_slippiEnableQuickChat, SLIPPI_CHAT_ON);
 	core->Get("SlippiForceNetplayPort", &m_slippiForceNetplayPort, false);
 	core->Get("SlippiNetplayPort", &m_slippiNetplayPort, 2626);
@@ -635,12 +645,19 @@ void SConfig::LoadCoreSettings(IniFile &ini)
 	core->Get("SlippiEnableCustomMatchmakingServers", &m_slippiCustomMMEnabled, true);
 	core->Get("SlippiCustomMatchmakingServerURL", &m_slippiCustomMMServerURL, "lylat.gg");
 	core->Get("SlippiCustomMatchmakingReportingURL", &m_slippiCustomMMReportingURL, "https://lylat.gg/reports");
+	core->Get("LylatServerOrigin", &m_lylatServerOrigin, "https://lylat.gg");
 	core->Get("SlippiReplayMonthFolders", &m_slippiReplayMonthFolders, false);
 	std::string default_replay_dir = File::GetHomeDirectory() + DIR_SEP + "Slippi";
 	core->Get("SlippiReplayDir", &m_strSlippiReplayDir, default_replay_dir);
 	if (m_strSlippiReplayDir.empty())
 		m_strSlippiReplayDir = default_replay_dir;
+	std::string default_regenerate_dir = File::GetHomeDirectory() + DIR_SEP + "Slippi" + DIR_SEP + "Regenerated";
+	core->Get("SlippiReplayRegenerateDir", &m_strSlippiRegenerateReplayDir, default_regenerate_dir);
+	if (m_strSlippiRegenerateReplayDir.empty())
+		m_strSlippiRegenerateReplayDir = default_regenerate_dir;
 	core->Get("SlippiPlaybackDisplayFrameIndex", &m_slippiEnableFrameIndex, false);
+	core->Get("SlippiPlayerRankDisplay", &bSlippiPlayerRankDisplay, true);
+	core->Get("SlippiOpponentRankDisplay", &bSlippiOpponentRankDisplay, true);
 	core->Get("BlockingPipes", &m_blockingPipes, false);
 	core->Get("MemcardAPath", &m_strMemoryCardA);
 	core->Get("MemcardBPath", &m_strMemoryCardB);
@@ -654,7 +671,11 @@ void SConfig::LoadCoreSettings(IniFile &ini)
 	for (int i = 0; i < MAX_SI_CHANNELS; ++i)
 	{
 		core->Get(StringFromFormat("SIDevice%i", i), (u32 *)&m_SIDevice[i], SIDEVICE_WIIU_ADAPTER);
+#ifndef IS_PLAYBACK
 		core->Get(StringFromFormat("AdapterRumble%i", i), &m_AdapterRumble[i], true);
+#else
+		core->Get(StringFromFormat("AdapterRumble%i", i), &m_AdapterRumble[i], false);
+#endif
 		core->Get(StringFromFormat("SimulateKonga%i", i), &m_AdapterKonga[i], false);
 	}
 	core->Get("WiiSDCard", &m_WiiSDCard, false);

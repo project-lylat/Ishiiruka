@@ -25,6 +25,8 @@ PLAYBACK_CODES_PATH="./Data/PlaybackGeckoCodes/"
 APPDIR_BIN="./AppDir/usr/bin"
 APPDIR_HOOKS="./AppDir/apprun-hooks"
 
+export NO_STRIP=on
+
 # Grab various appimage binaries from GitHub if we don't have them
 if [ ! -e ./Tools/linuxdeploy ]; then
 	wget ${LINUXDEPLOY_URL} -O ./Tools/linuxdeploy
@@ -87,5 +89,10 @@ fi
 # remomve libs that will cause conflicts
 rm ./AppDir/usr/lib/libgmodule*
 
+# Remove librsvg2, which causes a crash on fedora 41+ systems
+rm ./AppDir/usr/lib/librsvg-2.so.2
+
 # Bake appimage
 UPDATE_INFORMATION="${UPDATE_INFORMATION}" OUTPUT="${OUTPUT}" ./Tools/linuxdeploy-update-plugin --appdir=./AppDir/
+
+unset NO_STRIP

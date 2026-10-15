@@ -19,7 +19,7 @@ using json = nlohmann::json;
 class SlippiMatchmaking
 {
   public:
-	SlippiMatchmaking(SlippiUser *user, bool isMex);
+	SlippiMatchmaking(uintptr_t rs_exi_device_ptr, SlippiUser *user, bool isMex);
 	~SlippiMatchmaking();
 
 	enum OnlinePlayMode
@@ -28,6 +28,7 @@ class SlippiMatchmaking
 		UNRANKED = 1,
 		DIRECT = 2,
 		TEAMS = 3,
+		PARTY = 4,
 	};
 
 	enum ProcessState
@@ -40,10 +41,42 @@ class SlippiMatchmaking
 		ERROR_ENCOUNTERED,
 	};
 
+	enum SlippiRank
+	{
+		Unranked,
+		Bronze1,
+		Bronze2,
+		Bronze3,
+		Silver1,
+		Silver2,
+		Silver3,
+		Gold1,
+		Gold2,
+		Gold3,
+		Platinum1,
+		Platinum2,
+		Platinum3,
+		Diamond1,
+		Diamond2,
+		Diamond3,
+		Master1,
+		Master2,
+		Master3,
+		Grandmaster
+	};
+
 	struct MatchSearchSettings
 	{
 		OnlinePlayMode mode = OnlinePlayMode::RANKED;
 		std::string connectCode = "";
+	};
+
+	struct MatchmakeResult
+	{
+		std::string id = "";
+		std::vector<SlippiUser::UserInfo> players;
+		std::vector<u16> stages;
+		u32 items;
 	};
 
 	void FindMatch(MatchSearchSettings settings, bool isMex);
@@ -55,8 +88,10 @@ class SlippiMatchmaking
 	int LocalPlayerIndex();
 	std::vector<SlippiUser::UserInfo> GetPlayerInfo();
 	std::string GetPlayerName(u8 port);
+	SlippiRank GetPlayerRank(u8 port);
 	std::vector<u16> GetStages();
 	u8 RemotePlayerCount();
+	MatchmakeResult GetMatchmakeResult();
 	static bool IsFixedRulesMode(OnlinePlayMode mode);
 	static bool IsMexMode(SlippiUser* user, bool isCurrentGameMex, OnlinePlayMode mode);
 
@@ -74,6 +109,7 @@ class SlippiMatchmaking
 	std::default_random_engine generator;
 
 	bool isMmConnected = false;
+	bool isMmTerminated = false;
 
 	std::thread m_matchmakeThread;
 
@@ -89,12 +125,17 @@ class SlippiMatchmaking
 	int m_hostPort;
 	int m_localPlayerIndex;
 	std::vector<std::string> m_remoteIps;
+	MatchmakeResult m_mmResult;
 	std::vector<SlippiUser::UserInfo> m_playerInfo;
 	std::vector<u16> m_allowedStages;
 	bool m_joinedLobby;
 	bool m_isHost;
 
 	std::unique_ptr<SlippiNetplayClient> m_netplayClient;
+
+	// A pointer to a "shadow" EXI Device that lives on the Rust side of things.
+	// Do *not* do any cleanup of this! The EXI device will handle it.
+	uintptr_t slprs_exi_device_ptr;
 
 	const std::unordered_map<ProcessState, bool> searchingStates = {
 	    {ProcessState::INITIALIZING, true},

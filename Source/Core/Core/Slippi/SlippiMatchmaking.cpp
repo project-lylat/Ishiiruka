@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 
+#include "SlippiRustExtensions.h"
+
 #if defined __linux__ && HAVE_ALSA
 #elif defined __APPLE__
 #include <arpa/inet.h>
@@ -25,13 +27,15 @@ std::string MmMessageType::CREATE_TICKET = "create-ticket";
 std::string MmMessageType::CREATE_TICKET_RESP = "create-ticket-resp";
 std::string MmMessageType::GET_TICKET_RESP = "get-ticket-resp";
 
-SlippiMatchmaking::SlippiMatchmaking(SlippiUser *user, bool isMex)
+SlippiMatchmaking::SlippiMatchmaking(uintptr_t rs_exi_device_ptr, SlippiUser *user, bool isMex)
 {
 	this->isMex = SConfig::GetInstance().m_slippiCustomMMEnabled && isMex;
 
 	m_user = user;
 	m_state = ProcessState::IDLE;
 	m_errorMsg = "";
+
+	slprs_exi_device_ptr = rs_exi_device_ptr;
 
 	m_client = nullptr;
 	m_server = nullptr;
@@ -42,6 +46,7 @@ SlippiMatchmaking::SlippiMatchmaking(SlippiUser *user, bool isMex)
 
 SlippiMatchmaking::~SlippiMatchmaking()
 {
+	isMmTerminated = true;
 	m_state = ProcessState::ERROR_ENCOUNTERED;
 	m_errorMsg = "Matchmaking shut down";
 
@@ -160,7 +165,8 @@ std::unique_ptr<SlippiNetplayClient> SlippiMatchmaking::GetNetplayClient()
 
 bool SlippiMatchmaking::IsFixedRulesMode(SlippiMatchmaking::OnlinePlayMode mode)
 {
-	return mode == SlippiMatchmaking::OnlinePlayMode::UNRANKED || mode == SlippiMatchmaking::OnlinePlayMode::RANKED;
+	return mode == SlippiMatchmaking::OnlinePlayMode::UNRANKED || mode == SlippiMatchmaking::OnlinePlayMode::RANKED ||
+	       mode == SlippiMatchmaking::OnlinePlayMode::PARTY;
 }
 
 void SlippiMatchmaking::sendMessage(json msg)
@@ -222,6 +228,11 @@ void SlippiMatchmaking::MatchmakeThread()
 {
 	while (IsSearching())
 	{
+		if (isMmTerminated)
+		{
+			break;
+		}
+
 		switch (m_state)
 		{
 		case ProcessState::INITIALIZING:
@@ -283,6 +294,64 @@ void SlippiMatchmaking::terminateMmConnection()
 	}
 }
 
+// Fallback: arbitrarily choose the last available local IP address listed. They seem to be listed in decreasing order
+// IE. 192.168.0.100 > 192.168.0.10 > 10.0.0.2
+static char *getLocalAddressFallback()
+{
+	char host[256];
+	int hostname = gethostname(host, sizeof(host)); // find the host name
+	if (hostname == -1)
+	{
+		ERROR_LOG(SLIPPI_ONLINE, "[Matchmaking] Error finding LAN address");
+		return nullptr;
+	}
+
+	struct hostent *host_entry = gethostbyname(host); // find host information
+	if (host_entry == NULL || host_entry->h_addrtype != AF_INET || host_entry->h_addr_list[0] == 0)
+	{
+		ERROR_LOG(SLIPPI_ONLINE, "[Matchmaking] Error finding LAN host");
+		return nullptr;
+	}
+
+	// Fetch the last IP (because that was correct for me, not sure if it will be for all)
+	for (int i = 0; host_entry->h_addr_list[i] != 0; i++)
+		if (host_entry->h_addr_list[i + 1] == 0)
+			return host_entry->h_addr_list[i];
+	return nullptr;
+}
+
+// Set up and connect a socket (UDP, so "connect" doesn't actually send any
+// packets) so that the OS will determine what device/local IP address we will
+// actually use.
+static enet_uint32 getLocalAddress(ENetAddress *mm_address)
+{
+	ENetSocket socket = enet_socket_create(ENET_SOCKET_TYPE_DATAGRAM);
+	if (socket == -1)
+	{
+		ERROR_LOG(SLIPPI_ONLINE, "[Matchmaking] Failed to get local address: socket create");
+		enet_socket_destroy(socket);
+		return 0;
+	}
+
+	if (enet_socket_connect(socket, mm_address) == -1)
+	{
+		ERROR_LOG(SLIPPI_ONLINE, "[Matchmaking] Failed to get local address: socket connect");
+		enet_socket_destroy(socket);
+		return 0;
+	}
+
+	ENetAddress enetAddress;
+	if (enet_socket_get_address(socket, &enetAddress) == -1)
+	{
+		ERROR_LOG(SLIPPI_ONLINE, "[Matchmaking] Failed to get local address: socket get address");
+		enet_socket_destroy(socket);
+		return 0;
+	}
+
+	enet_socket_destroy(socket);
+	return enetAddress.host;
+}
+
 void SlippiMatchmaking::startMatchmaking()
 {
 	// I don't understand why I have to do this... if I don't do this, rand always returns the
@@ -290,6 +359,34 @@ void SlippiMatchmaking::startMatchmaking()
 	m_client = nullptr;
 
 	int retryCount = 0;
+
+	// If IsFixedRules mode, don't allow ISO's that are known to desync.
+	// Lylat: searches routed to the Lylat server (mods) skip Slippi's ISO list.
+	if (IsFixedRulesMode(m_searchSettings.mode) && !IsMexMode(m_user, isMex, m_searchSettings.mode))
+	{
+		auto check = slprs_get_iso_md5_check(slprs_exi_device_ptr);
+		while (check.result == 0)
+		{
+			Common::SleepCurrentThread(500);
+			retryCount++;
+			if (retryCount > 10)
+			{
+				m_state = ProcessState::ERROR_ENCOUNTERED;
+				m_errorMsg = "Could not validate ISO";
+				return;
+			}
+			check = slprs_get_iso_md5_check(slprs_exi_device_ptr);
+		}
+
+		if (check.result == 2)
+		{
+			m_state = ProcessState::ERROR_ENCOUNTERED;
+			m_errorMsg = "Cannot queue for this mode with a modded ISO known to desync";
+			return;
+		}
+	}
+
+	retryCount = 0;
 	auto userInfo = m_user->GetUserInfo();
 	while (m_client == nullptr && retryCount < 15)
 	{
@@ -376,59 +473,32 @@ void SlippiMatchmaking::startMatchmaking()
 	    return;
 	}*/
 
-	// The following code attempts to fetch the LAN IP such that when remote IPs match, the
-	// LAN IP can be tried in order to establish a connection in the case where the players
-	// don't have NAT loopback which allows that type of connection.
-	// Right now though, the logic would replace the WAN IP with the LAN IP and if the LAN
-	// IP connection didn't work but WAN would have, the players can no longer connect.
-	// Two things need to happen to improtve this logic:
-	// 1. The connection must be changed to try both the LAN and WAN IPs in the case of
-	//    matching WAN IPs
-	// 2. The process for fetching LAN IP must be improved. For me, the current method
-	//    would always fetch my VirtualBox IP, which is not correct. I also think perhaps
-	//    it didn't work on Linux/Mac but I haven't tested it.
-	// I left this logic on for now under the assumption that it will help more people than
-	// it will hurt
+	// Determine local IP address. We can attempt to connect to our opponent via
+	// local IP address if we have the same external IP address. The following
+	// scenarios can cause us to have the same external IP address:
+	// - we are connected to the same LAN
+	// - we are connected to the same VPN node
+	// - we are behind the same CGNAT
 	char lanAddr[30] = "";
-
-	char host[256];
-	char *IP;
-	struct hostent *host_entry;
-	int hostname;
-	hostname = gethostname(host, sizeof(host)); // find the host name
-	if (hostname == -1)
-	{
-		ERROR_LOG(SLIPPI_ONLINE, "[Matchmaking] Error finding LAN address");
-	}
-	else
-	{
-		host_entry = gethostbyname(host); // find host information
-		if (host_entry == NULL || host_entry->h_addrtype != AF_INET)
-		{
-			ERROR_LOG(SLIPPI_ONLINE, "[Matchmaking] Error finding LAN host");
-		}
-		else
-		{
-			// Fetch the last IP (because that was correct for me, not sure if it will be for all)
-			int i = 0;
-			while (host_entry->h_addr_list[i] != 0)
-			{
-				IP = inet_ntoa(*((struct in_addr *)host_entry->h_addr_list[i]));
-				WARN_LOG(SLIPPI_ONLINE, "[Matchmaking] IP at idx %d: %s", i, IP);
-				i++;
-			}
-
-			sprintf(lanAddr, "%s:%d", IP, m_hostPort);
-		}
-	}
-
 	if (SConfig::GetInstance().m_slippiForceLanIp)
 	{
-
 		WARN_LOG(SLIPPI_ONLINE, "[Matchmaking] Overwriting LAN IP sent with configured address");
 		sprintf(lanAddr, "%s:%d", SConfig::GetInstance().m_slippiLanIp.c_str(), m_hostPort);
 	}
-
+	else
+	{
+		enet_uint32 localAddress = getLocalAddress(&addr);
+		if (localAddress != 0)
+		{
+			sprintf(lanAddr, "%s:%d", inet_ntoa(*(struct in_addr *)&localAddress), m_hostPort);
+		}
+		else
+		{
+			char *fallbackAddress = getLocalAddressFallback();
+			if (fallbackAddress != nullptr)
+				sprintf(lanAddr, "%s:%d", inet_ntoa(*(struct in_addr *)fallbackAddress), m_hostPort);
+		}
+	}
 	WARN_LOG(SLIPPI_ONLINE, "[Matchmaking] Sending LAN address: %s", lanAddr);
 
 	std::vector<u8> connectCodeBuf;
@@ -551,6 +621,9 @@ void SlippiMatchmaking::handleMatchmaking()
 	m_remoteIps.clear();
 	m_playerInfo.clear();
 
+	std::string matchId = getResp.value("matchId", "");
+	WARN_LOG(SLIPPI_ONLINE, "Match ID: %s", matchId.c_str());
+
 	auto queue = getResp["players"];
 	if (queue.is_array())
 	{
@@ -566,6 +639,31 @@ void SlippiMatchmaking::handleMatchmaking()
 			playerInfo.displayName = el.value("displayName", "");
 			playerInfo.connectCode = el.value("connectCode", "");
 			playerInfo.port = el.value("port", 0);
+			playerInfo.isBot = el.value("isBot", false);
+
+			if (el["chatMessages"].is_array())
+			{
+				playerInfo.chatMessages = el.value("chatMessages", m_user->GetDefaultChatMessages());
+
+				if (playerInfo.chatMessages.size() != 16)
+				{
+					playerInfo.chatMessages = m_user->GetDefaultChatMessages();
+				}
+			}
+			else
+			{
+				playerInfo.chatMessages = m_user->GetDefaultChatMessages();
+			}
+
+			json rankEl = el["rank"];
+			if (rankEl.is_object())
+			{
+				playerInfo.rankedRating = rankEl.value("rating", 0.0f);
+				playerInfo.rankedUpdateCount = rankEl.value("updateCount", 0);
+				playerInfo.rankedGlobalPlacement = rankEl.value("globalPlacement", 0);
+				playerInfo.rankedRegionalPlacement = rankEl.value("regionalPlacement", 0);
+			}
+
 			m_playerInfo.push_back(playerInfo);
 
 			if (isLocal)
@@ -637,8 +735,19 @@ void SlippiMatchmaking::handleMatchmaking()
 		}
 	}
 
+	m_mmResult.id = matchId;
+	m_mmResult.players = m_playerInfo;
+	m_mmResult.stages = m_allowedStages;
+	m_mmResult.items = getResp.value<u32>("items", 0);
+
 	// Disconnect and destroy enet client to mm server
 	terminateMmConnection();
+
+	// If ranked, report to backend that we are attempting to connect to this match
+	if (matchId.find("mode.ranked") != std::string::npos)
+	{
+		slprs_exi_device_report_match_status(slprs_exi_device_ptr, matchId.c_str(), "connecting", true);
+	}
 
 	m_state = ProcessState::OPPONENT_CONNECTING;
 	ERROR_LOG(SLIPPI_ONLINE, "[Matchmaking] Opponent found. isDecider: %s", m_isHost ? "true" : "false");
@@ -657,6 +766,130 @@ std::vector<SlippiUser::UserInfo> SlippiMatchmaking::GetPlayerInfo()
 std::vector<u16> SlippiMatchmaking::GetStages()
 {
 	return m_allowedStages;
+}
+
+// This is kind of duplicate code from what exists in rust. Maybe eventually it should be remove
+// and exist only on the rust side
+SlippiMatchmaking::SlippiRank SlippiMatchmaking::GetPlayerRank(u8 port)
+{
+	if (port >= m_playerInfo.size())
+	{
+		return SlippiRank::Unranked;
+	}
+
+	auto info = m_playerInfo[port];
+
+	float rating = info.rankedRating;
+	int updateCount = info.rankedUpdateCount;
+	int global = info.rankedGlobalPlacement;
+	int regional = info.rankedRegionalPlacement;
+
+	if (updateCount < 5)
+	{
+		return SlippiRank::Unranked;
+	}
+
+	if (rating <= 765.42f)
+	{
+		return SlippiRank::Bronze1;
+	}
+
+	if (rating > 765.43f && rating <= 913.71f)
+	{
+		return SlippiRank::Bronze2;
+	}
+
+	if (rating > 913.72f && rating <= 1054.86f)
+	{
+		return SlippiRank::Bronze3;
+	}
+
+	if (rating > 1054.87f && rating <= 1188.87f)
+	{
+		return SlippiRank::Silver1;
+	}
+
+	if (rating > 1188.88f && rating <= 1315.74f)
+	{
+		return SlippiRank::Silver2;
+	}
+
+	if (rating > 1315.75f && rating <= 1435.47f)
+	{
+		return SlippiRank::Silver3;
+	}
+
+	if (rating > 1435.48f && rating <= 1548.06f)
+	{
+		return SlippiRank::Gold1;
+	}
+
+	if (rating > 1548.07f && rating <= 1653.51f)
+	{
+		return SlippiRank::Gold2;
+	}
+
+	if (rating > 1653.52f && rating <= 1751.82f)
+	{
+		return SlippiRank::Gold3;
+	}
+
+	if (rating > 1751.83f && rating <= 1842.99f)
+	{
+		return SlippiRank::Platinum1;
+	}
+
+	if (rating > 1843.0f && rating <= 1927.02f)
+	{
+		return SlippiRank::Platinum2;
+	}
+
+	if (rating > 1927.03f && rating <= 2003.91f)
+	{
+		return SlippiRank::Platinum3;
+	}
+
+	if (rating > 2003.92f && rating <= 2073.66f)
+	{
+		return SlippiRank::Diamond1;
+	}
+
+	if (rating > 2073.67f && rating <= 2136.27f)
+	{
+		return SlippiRank::Diamond2;
+	}
+
+	if (rating > 2136.28f && rating <= 2191.74f)
+	{
+		return SlippiRank::Diamond3;
+	}
+
+	if (rating >= 2191.75f && (global > 0 || regional > 0))
+	{
+		return SlippiRank::Grandmaster;
+	}
+
+	if (rating > 2191.75f && rating <= 2274.99f)
+	{
+		return SlippiRank::Master1;
+	}
+
+	if (rating > 2275.0f && rating <= 2350.0f)
+	{
+		return SlippiRank::Master2;
+	}
+
+	if (rating > 2350.0f)
+	{
+		return SlippiRank::Master3;
+	}
+
+	return SlippiRank::Unranked;
+}
+
+SlippiMatchmaking::MatchmakeResult SlippiMatchmaking::GetMatchmakeResult()
+{
+	return m_mmResult;
 }
 
 std::string SlippiMatchmaking::GetPlayerName(u8 port)
