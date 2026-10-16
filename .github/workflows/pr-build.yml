@@ -277,6 +277,10 @@ jobs:
             build_config: netplay
     name: "macOS ${{ matrix.build_type }}"
     runs-on: macos-15-intel
+    env:
+      # Signing runs only where the Apple certificate secrets are set; without them the
+      # codesign step failed with an empty identity and nothing in the keychain.
+      HAS_MACOS_CERT: ${{ secrets.CERTIFICATE_MACOS_APPLICATION != '' }}
     steps:
       - name: "Checkout"
         uses: actions/checkout@v3
@@ -339,7 +343,7 @@ jobs:
           FILE_NAME=${{ env.CURR_DATE }}-${{ env.GIT_HASH }}-${{ env.GIT_TAG }}-${{ matrix.artifact_name }}
           echo "FILE_NAME=$FILE_NAME" >> $GITHUB_ENV
       - name: "Codesign ${{ matrix.build_type}} Dolphin"
-        if: success()
+        if: success() && env.HAS_MACOS_CERT == 'true'
         shell: bash
         working-directory: ${{ github.workspace }}
         env:
@@ -373,7 +377,7 @@ jobs:
             "./build/Binaries/"
           mv "${{ env.FILE_NAME }}.dmg" artifact/
       - name: "Sign and Notarize ${{ matrix.build_type }} Release DMG"
-        if: success() && env.CERTIFICATE_MACOS_APPLICATION != null
+        if: success() && env.HAS_MACOS_CERT == 'true'
         shell: bash
         working-directory: ${{ github.workspace }}
         env:
