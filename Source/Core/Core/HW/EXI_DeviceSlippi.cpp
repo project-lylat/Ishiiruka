@@ -162,9 +162,9 @@ CEXISlippi::CEXISlippi()
 	slprs_exi_config.scm_slippi_semver_str = scm_slippi_semver_str.c_str();
 	slprs_exi_config.osd_add_msg_fn = OSDMessageHandler;
 
-	// Lylat: one device per game. Vanilla talks to Slippi's servers with the Slippi account linked
-	// in lylat.json; mods talk to the Lylat servers with the Lylat account. Both fall back to
-	// user.json. The Lylat addresses come from the Rust build's environment (SLIPPI_ENV).
+	// Lylat: one device per game. Vanilla talks to Slippi's servers with Slippi credentials only (the
+	// account linked in lylat.json, else user.json); mods talk to the Lylat servers with the Lylat
+	// account in lylat.json only. The Lylat addresses come from the Rust build's environment (SLIPPI_ENV).
 	bool lylatServers = SlippiMatchmaking::IsMexMode(nullptr, SConfig::GetInstance().m_slippiCustomMMEnabled && isMex,
 	                                                 SlippiMatchmaking::OnlinePlayMode::UNRANKED);
 	std::string lylatAccountPath = File::GetSlippiUserJSONPath();

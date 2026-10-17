@@ -16,10 +16,10 @@
 // cannot outlive the EXI device - but we control that and just need to do our due diligence
 // when making changes.
 //
-// Lylat: the Rust device reads the account (see CEXISlippi's constructor): the Slippi account
-// linked in `lylat.json` for vanilla, the Lylat account in it for mods, `user.json` when that
-// one is missing. This class keeps the Lylat sign-in: the QR dialog, the browser page and the
-// "logged in" callback.
+// Lylat: the Rust device reads the account (see CEXISlippi's constructor). Vanilla takes Slippi
+// credentials only: the Slippi account linked in `lylat.json`, else `user.json`. Mods take the
+// Lylat account in `lylat.json` and nothing else. This class keeps the Lylat sign-in: the QR
+// dialog, the browser page and the "logged in" callback.
 class SlippiUser
 {
   public:
