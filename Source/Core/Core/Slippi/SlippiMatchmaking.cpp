@@ -102,13 +102,9 @@ std::string SlippiMatchmaking::getMMHostForSearchMode()
  */
 bool SlippiMatchmaking::IsMexMode(SlippiUser* user, bool isCurrentGameMex, OnlinePlayMode mode)
 {
-
-	// If the current user account is not connected to Slippi then route through Lylat
-	if (!user->HasSlippiInfo())
-		return true;
-
-	// Only vanilla Melee goes to Slippi, in every mode. Mods (a sub game other than GALE01, or
-	// an m-ex disc) go to Lylat, so they never land in Slippi's random queues with vanilla players.
+	// Vanilla Melee goes to Slippi and nowhere else, in every mode; startFindMatch refuses it
+	// without a linked Slippi account. Mods (a sub game other than GALE01, or an m-ex disc) go to
+	// Lylat, so they never land in Slippi's random queues with vanilla players.
 	if (SConfig::GetInstance().m_strSubGameID != "GALE01")
 		return true;
 

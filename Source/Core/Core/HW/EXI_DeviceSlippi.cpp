@@ -1925,8 +1925,12 @@ void CEXISlippi::startFindMatch(u8 *payload)
 	auto isMex = SConfig::GetInstance().m_gameType == GAMETYPE_MELEE_MEX;
 	auto isCustomMMEnabled = SConfig::GetInstance().m_slippiCustomMMEnabled;
 
-	// Lylat: without a linked Slippi account every mode goes to Lylat (see IsMexMode), so no mode
-	// needs one.
+	// Lylat: vanilla Melee only plays on Slippi (see IsMexMode), which needs a linked Slippi account.
+	if (!SlippiMatchmaking::IsMexMode(user.get(), isCustomMMEnabled && isMex, search.mode) && !user->HasSlippiInfo())
+	{
+		forcedError = ERROR_MSG_MISSING_SLIPPI_INFO;
+		return;
+	}
 	std::string shiftJisCode;
 	shiftJisCode.insert(shiftJisCode.begin(), &payload[1], &payload[1] + 18);
 	shiftJisCode.erase(std::find(shiftJisCode.begin(), shiftJisCode.end(), 0x00), shiftJisCode.end());
