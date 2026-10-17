@@ -12,7 +12,6 @@
 #include "Core/Slippi/SlippiDirectCodes.h"
 #include "Core/Slippi/SlippiExiTypes.h"
 #include "Core/Slippi/SlippiGameFileLoader.h"
-#include "Core/Slippi/SlippiGameReporter.h"
 #include "Core/Slippi/SlippiMatchmaking.h"
 #include "Core/Slippi/SlippiNetplay.h"
 #include "Core/Slippi/SlippiReplayComm.h"
@@ -354,7 +353,6 @@ class CEXISlippi : public IEXIDevice
 
 	std::unique_ptr<SlippiUser> user;
 	std::unique_ptr<SlippiGameFileLoader> gameFileLoader;
-	std::unique_ptr<SlippiGameReporter> gameReporter; // Lylat: reports games routed to the Lylat server
 	std::unique_ptr<SlippiNetplayClient> slippi_netplay;
 	std::unique_ptr<SlippiMatchmaking> matchmaking;
 	std::unique_ptr<SlippiDirectCodes> directCodes;

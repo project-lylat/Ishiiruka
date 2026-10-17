@@ -4,6 +4,10 @@ on:
   release:
     types: [released]
 
+# Lylat: the Rust extensions use the production Lylat servers (see Externals/SlippiRustExtensions/config).
+env:
+  SLIPPI_ENV: production
+
 jobs:
   package:
     name: Release New Slippi Dolphin

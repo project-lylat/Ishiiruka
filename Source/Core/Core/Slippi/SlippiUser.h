@@ -2,28 +2,29 @@
 
 #include "Common/CommonTypes.h"
 #include <atomic>
-#include <curl/curl.h>
 #include <functional>
-#include <mutex>
 #include <string>
 #include <thread>
 #include <unordered_map>
 #include <vector>
 
-// Upstream turned this class into a shim over the Rust user manager, which reads
-// `user.json` and talks to the Slippi servers.
+// This class is currently a shim for the Rust user interface. We're doing it this way
+// to begin migrating things over without needing to do larger invasive changes.
 //
-// Lylat: the account still lives in the C++ side. It is read from `lylat.json`
-// (File::GetSlippiUserJSONPath), refreshed from the Lylat server and may hold a linked
-// Slippi account under its `slippi` key. The Rust device is still used for default chat
-// messages; everything else about the account is handled here.
-//
-// A quirk of this is that we're using the EXI device pointer, so this class absolutely
+// The remaining methods on here are simply layers that direct the call over to the Rust
+// side. A quirk of this is that we're using the EXI device pointer, so this class absolutely
 // cannot outlive the EXI device - but we control that and just need to do our due diligence
 // when making changes.
+//
+// Lylat: the Rust device reads the account (see CEXISlippi's constructor): the Slippi account
+// linked in `lylat.json` for vanilla, the Lylat account in it for mods, `user.json` when that
+// one is missing. This class keeps the Lylat sign-in: the QR dialog, the browser page and the
+// "logged in" callback.
 class SlippiUser
 {
   public:
+	// This type is filled in with data from the Rust side.
+	// Eventually, this entire class will disappear.
 	struct UserInfo
 	{
 		std::string uid = "";
@@ -31,12 +32,6 @@ class SlippiUser
 		std::string displayName = "";
 		std::string connectCode = "";
 		std::string latestVersion = "";
-		std::string lylatVersion = "";
-		std::string fileContents = "";
-
-		std::string slippi_uid = "";
-		std::string slippi_playKey = "";
-		std::string slippi_connectCode = "";
 
 		int port;
 
@@ -63,10 +58,8 @@ class SlippiUser
 	std::vector<std::string> GetUserChatMessages();
 	std::vector<std::string> GetDefaultChatMessages();
 	bool IsLoggedIn();
-	void FileListenThread();
-	bool HasSlippiInfo();
 
-	// Lylat: the base URL of the Lylat site (login page, user API, device sign-in).
+	// Lylat: the base URL of the Lylat site (QR device sign-in).
 	static std::string GetLylatOrigin();
 	// Lylat: opens the browser login page (the "manual login" flow).
 	static void OpenBrowserLogInPage();
@@ -78,21 +71,13 @@ class SlippiUser
 	static std::function<void()> s_onLoggedIn;
 
   protected:
-	UserInfo parseFile(std::string fileContents);
-	void deleteFile();
-	void overwriteFromServer();
+	void FileListenThread();
 
 	// A pointer to a "shadow" EXI Device that lives on the Rust side of things.
 	// Do *not* do any cleanup of this! The EXI device will handle it.
 	uintptr_t slprs_exi_device_ptr;
 
-	std::mutex userInfoMutex;
-	UserInfo userInfo;
-	std::atomic<bool> isLoggedIn{false};
-
-	CURL *m_curl = nullptr;
-	struct curl_slist *m_curlHeaderList = nullptr;
-
+	// Lylat: waits for the sign-in to write the account file, then calls s_onLoggedIn.
 	std::thread fileListenThread;
 	std::atomic<bool> runThread{false};
 };

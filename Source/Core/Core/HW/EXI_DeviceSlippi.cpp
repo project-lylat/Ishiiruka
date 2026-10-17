@@ -162,16 +162,19 @@ CEXISlippi::CEXISlippi()
 	slprs_exi_config.scm_slippi_semver_str = scm_slippi_semver_str.c_str();
 	slprs_exi_config.osd_add_msg_fn = OSDMessageHandler;
 
-	slprs_exi_device_ptr = slprs_exi_device_create(slprs_exi_config);
+	// Lylat: one device per game. Vanilla talks to Slippi's servers with the Slippi account linked
+	// in lylat.json; mods talk to the Lylat servers with the Lylat account. Both fall back to
+	// user.json. The Lylat addresses come from the Rust build's environment (SLIPPI_ENV).
+	bool lylatServers = SlippiMatchmaking::IsMexMode(nullptr, SConfig::GetInstance().m_slippiCustomMMEnabled && isMex,
+	                                                 SlippiMatchmaking::OnlinePlayMode::UNRANKED);
+	std::string lylatAccountPath = File::GetSlippiUserJSONPath();
+	slprs_exi_device_ptr = slprs_exi_device_create_lylat(slprs_exi_config, lylatServers, lylatAccountPath.c_str());
 
 	m_slippiserver = SlippiSpectateServer::getInstance();
 	user = std::make_unique<SlippiUser>(slprs_exi_device_ptr);
 	g_playbackStatus = std::make_unique<SlippiPlaybackStatus>();
 	matchmaking = std::make_unique<SlippiMatchmaking>(slprs_exi_device_ptr, user.get(), isMex);
 	gameFileLoader = std::make_unique<SlippiGameFileLoader>();
-	// Lylat: games routed to the Lylat server are reported by the C++ reporter
-	// (custom reporting URL). Games routed to Slippi use the Rust reporter.
-	gameReporter = std::make_unique<SlippiGameReporter>(user.get(), isMex);
 	g_replayComm = std::make_unique<SlippiReplayComm>();
 	directCodes = std::make_unique<SlippiDirectCodes>(slprs_exi_device_ptr, SlippiDirectCodes::DIRECT);
 	teamsCodes = std::make_unique<SlippiDirectCodes>(slprs_exi_device_ptr, SlippiDirectCodes::TEAMS);
@@ -1925,8 +1928,9 @@ void CEXISlippi::startFindMatch(u8 *payload)
 	auto isMex = SConfig::GetInstance().m_gameType == GAMETYPE_MELEE_MEX;
 	auto isCustomMMEnabled = SConfig::GetInstance().m_slippiCustomMMEnabled;
 
-	// Lylat: vanilla Melee only plays on Slippi (see IsMexMode), which needs a linked Slippi account.
-	if (!SlippiMatchmaking::IsMexMode(user.get(), isCustomMMEnabled && isMex, search.mode) && !user->HasSlippiInfo())
+	// Lylat: vanilla Melee only plays on Slippi (see IsMexMode), which needs a Slippi account: the one
+	// linked in lylat.json, or user.json.
+	if (!SlippiMatchmaking::IsMexMode(user.get(), isCustomMMEnabled && isMex, search.mode) && !user->IsLoggedIn())
 	{
 		forcedError = ERROR_MSG_MISSING_SLIPPI_INFO;
 		return;
@@ -2254,7 +2258,6 @@ void CEXISlippi::prepareOnlineMatchState()
 		if (!isPlaySessionActive)
 		{
 			slprs_exi_device_start_new_reporter_session(slprs_exi_device_ptr);
-			gameReporter->StartNewSession();
 			isPlaySessionActive = true;
 		}
 	}
@@ -3050,17 +3053,12 @@ void CEXISlippi::prepareOnlineStatus()
 	if (isLoggedIn)
 	{
 		// Check if we have the latest version, and if not, indicate we need to update
+		// Lylat: the latest version comes from the server the device talks to, Slippi's for
+		// vanilla and Lylat's for mods.
 		version::Semver200_version latestVersion(userInfo.latestVersion);
-		version::Semver200_version lylatVersion(userInfo.lylatVersion);
 		version::Semver200_version currentVersion(scm_slippi_semver_str);
 
-		std::string subGameID = SConfig::GetInstance().m_strSubGameID;
-
-		// Only require update if slippi versions mismatch
-		appState = ((latestVersion > currentVersion && subGameID == "GALE01") || lylatVersion > currentVersion) ? 2 : 1;
-		// TODO: we need to handle proper lylat updates when there's enough bandwidth, for now
-		// TODO: Only match users that are using the same version on the mm server so the app can still be used
-		// TODO: fix black screen when there's a required update (lylat-ssbm-asm)
+		appState = latestVersion > currentVersion ? 2 : 1;
 	}
 
 	m_read_queue.push_back(appState);
@@ -3149,23 +3147,12 @@ void CEXISlippi::handleReportGame(const SlippiExiTypes::ReportGameQuery &query)
 
 	auto userInfo = user->GetUserInfo();
 
-	// Lylat: decide where this game is reported. Games routed to the Lylat server go to the
-	// Lylat reporting URL with the Lylat account; games routed to Slippi go through the Rust
-	// reporter with the linked Slippi account.
-	auto isMexGame = SConfig::GetInstance().m_gameType == GAMETYPE_MELEE_MEX;
-	bool isLylatRoute = SlippiMatchmaking::IsMexMode(user.get(), SConfig::GetInstance().m_slippiCustomMMEnabled && isMexGame,
-	                                                 (SlippiMatchmaking::OnlinePlayMode)query.onlineMode);
-	SlippiGameReporter::GameReport lylatReport;
-	lylatReport.mode = (SlippiMatchmaking::OnlinePlayMode)query.onlineMode;
-	lylatReport.durationFrames = durationFrames;
-
 	// We pass `uid` and `playKey` here until the User side of things is
 	// ported to Rust.
-	uintptr_t gameReport = 0;
-	if (!isLylatRoute)
-		gameReport = slprs_game_report_create(userInfo.slippi_uid.c_str(), userInfo.slippi_playKey.c_str(), onlineMode,
-		                                      matchId.c_str(), durationFrames, gameIndex, tiebreakIndex, winnerIdx,
-		                                      gameEndMethod, lrasInitiator, stageId);
+	// Lylat: the device reports to the server it talks to (see the constructor), with its account.
+	uintptr_t gameReport = slprs_game_report_create(userInfo.uid.c_str(), userInfo.playKey.c_str(), onlineMode,
+	                                                matchId.c_str(), durationFrames, gameIndex, tiebreakIndex,
+	                                                winnerIdx, gameEndMethod, lrasInitiator, stageId);
 
 	auto mmPlayers = recentMmResult.players;
 
@@ -3184,19 +3171,6 @@ void CEXISlippi::handleReportGame(const SlippiExiTypes::ReportGameQuery &query)
 		          "UID: %s, Port Type: %d, Stocks: %d, DamageDone: %f, CharId: %d, ColorId: %d, StartStocks: %d, "
 		          "StartPercent: %d",
 		          uid.c_str(), slotType, stocksRemaining, damageDone, charId, colorId, startingStocks, startingPercent);
-
-		if (isLylatRoute)
-		{
-			if (i < (int)mmPlayers.size())
-			{
-				SlippiGameReporter::PlayerReport p;
-				p.uid = uid;
-				p.damageDone = damageDone;
-				p.stocksRemaining = stocksRemaining;
-				lylatReport.players.push_back(p);
-			}
-			continue;
-		}
 
 		uintptr_t playerReport = slprs_player_report_create(uid.c_str(), slotType, damageDone, stocksRemaining, charId,
 		                                                    colorId, startingStocks, startingPercent);
@@ -3224,10 +3198,7 @@ void CEXISlippi::handleReportGame(const SlippiExiTypes::ReportGameQuery &query)
 	}
 
 #ifndef LOCAL_TESTING
-	if (isLylatRoute)
-		gameReporter->StartReport(lylatReport);
-	else
-		slprs_exi_device_log_game_report(slprs_exi_device_ptr, gameReport);
+	slprs_exi_device_log_game_report(slprs_exi_device_ptr, gameReport);
 #endif
 }
 

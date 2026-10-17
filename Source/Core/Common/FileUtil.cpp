@@ -819,8 +819,8 @@ std::string GetSlippiUserConfigFolder()
 	return userFilePath;
 }
 
-// Lylat: the Lylat account file (lylat.json). It is read by the C++ SlippiUser, not by
-// the Rust user manager, and keeps the location the Lylat builds have always used.
+// Lylat: the Lylat account file (lylat.json), in the location the Lylat builds have always
+// used. The Rust user manager reads it (CEXISlippi passes this path), with user.json as fallback.
 std::string GetSlippiUserJSONPath()
 {
 #if defined(__APPLE__)

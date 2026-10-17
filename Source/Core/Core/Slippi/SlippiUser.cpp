@@ -1,19 +1,14 @@
 #include "SlippiUser.h"
 
 #include "Common/Common.h"
-#include "Common/CommonPaths.h"
 #include "Common/FileUtil.h"
 #include "Common/Logging/Log.h"
-#include "Common/MsgHandler.h"
 #include "Common/StringUtil.h"
 #include "Common/Thread.h"
 
 #include "Core/ConfigManager.h"
 
 #include "SlippiRustExtensions.h"
-
-#include <nlohmann/json.hpp>
-using json = nlohmann::json;
 
 std::function<void()> SlippiUser::s_showLoginDialog;
 std::function<void()> SlippiUser::s_onLoggedIn;
@@ -44,39 +39,9 @@ static void RunSystemCommand(const std::string &command)
 #endif
 }
 
-static size_t receive(char *ptr, size_t size, size_t nmemb, void *rcvBuf)
-{
-	size_t len = size * nmemb;
-	INFO_LOG(SLIPPI_ONLINE, "[User] Received data: %d", (int)len);
-
-	std::string *buf = (std::string *)rcvBuf;
-
-	buf->insert(buf->end(), ptr, ptr + len);
-
-	return len;
-}
-
 SlippiUser::SlippiUser(uintptr_t rs_exi_device_ptr)
 {
 	slprs_exi_device_ptr = rs_exi_device_ptr;
-
-	CURL *curl = curl_easy_init();
-	if (curl)
-	{
-		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &receive);
-		curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 5000);
-
-		// Set up HTTP Headers
-		m_curlHeaderList = curl_slist_append(m_curlHeaderList, "Content-Type: application/json");
-		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, m_curlHeaderList);
-
-#ifdef _WIN32
-		// ALPN support is enabled by default but requires Windows >= 8.1.
-		curl_easy_setopt(curl, CURLOPT_SSL_ENABLE_ALPN, false);
-#endif
-
-		m_curl = curl;
-	}
 }
 
 SlippiUser::~SlippiUser()
@@ -85,12 +50,6 @@ SlippiUser::~SlippiUser()
 	runThread = false;
 	if (fileListenThread.joinable())
 		fileListenThread.join();
-
-	if (m_curl)
-	{
-		curl_slist_free_all(m_curlHeaderList);
-		curl_easy_cleanup(m_curl);
-	}
 }
 
 std::string SlippiUser::GetLylatOrigin()
@@ -105,50 +64,29 @@ std::string SlippiUser::GetLylatOrigin()
 
 bool SlippiUser::AttemptLogin()
 {
+	// Lylat: some browsers save the file the login page writes as lylat.json.txt.
 	std::string userFilePath = File::GetSlippiUserJSONPath();
-
+	std::string userFilePathTxt = userFilePath + ".txt";
+	if (File::Exists(userFilePathTxt))
 	{
-		std::string userFilePathTxt =
-		    userFilePath + ".txt"; // Put the filename here in its own scope because we don't really need it elsewhere
-		if (File::Exists(userFilePathTxt))
+		// If both files exist we just log they exist and take no further action
+		if (File::Exists(userFilePath))
 		{
-			// If both files exist we just log they exist and take no further action
-			if (File::Exists(userFilePath))
-			{
-				INFO_LOG(SLIPPI_ONLINE,
-				         "Found both .json.txt and .json file for user data. Using .json and ignoring the .json.txt");
-			}
-			// If only the .txt file exists move the contents to a json file and log if it fails
-			else if (!File::Rename(userFilePathTxt, userFilePath))
-			{
-				WARN_LOG(SLIPPI_ONLINE, "Could not move file %s to %s", userFilePathTxt.c_str(), userFilePath.c_str());
-			}
+			INFO_LOG(SLIPPI_ONLINE,
+			         "Found both .json.txt and .json file for user data. Using .json and ignoring the .json.txt");
+		}
+		// If only the .txt file exists move the contents to a json file and log if it fails
+		else if (!File::Rename(userFilePathTxt, userFilePath))
+		{
+			WARN_LOG(SLIPPI_ONLINE, "Could not move file %s to %s", userFilePathTxt.c_str(), userFilePath.c_str());
 		}
 	}
 
-	// Get user file
-	std::string userFileContents;
-	File::ReadFileToString(userFilePath, userFileContents);
-
-	UserInfo info = parseFile(userFileContents);
-	{
-		std::lock_guard<std::mutex> lk(userInfoMutex);
-		userInfo = info;
-	}
-
-	bool loggedIn = !info.uid.empty();
-	if (loggedIn)
-	{
-		overwriteFromServer();
-		WARN_LOG(SLIPPI_ONLINE, "Found user %s (%s)", info.displayName.c_str(), info.uid.c_str());
-	}
-
-	isLoggedIn = loggedIn;
-	return loggedIn;
+	return slprs_user_attempt_login(slprs_exi_device_ptr);
 }
 
-// Lylat: the browser login page (the "manual login" flow). The page writes lylat.json to
-// the given path, the same way the Slippi page wrote user.json.
+// Lylat: the browser login page (the "manual login" flow), for the QR dialog's "Manual login".
+// The page writes lylat.json to the given path, the same way the Slippi page wrote user.json.
 void SlippiUser::OpenBrowserLogInPage()
 {
 	std::string url = GetLylatOrigin() + "/users/enable";
@@ -183,16 +121,16 @@ void SlippiUser::OpenLogInPage()
 		return;
 	}
 
-	OpenBrowserLogInPage();
+	slprs_user_open_login_page(slprs_exi_device_ptr);
 }
 
 bool SlippiUser::UpdateApp()
 {
-	CriticalAlertT("Automatic updates are not currently available for Lylat. Please get the latest update from "
-	               "https://lylat.gg/download.");
-	return true;
+	return slprs_user_update_app(slprs_exi_device_ptr);
 }
 
+// Lylat: polls like the Rust watcher (slprs_user_listen_for_login) so the UI can be told
+// when the sign-in lands.
 void SlippiUser::ListenForLogIn()
 {
 	if (runThread)
@@ -203,55 +141,6 @@ void SlippiUser::ListenForLogIn()
 
 	runThread = true;
 	fileListenThread = std::thread(&SlippiUser::FileListenThread, this);
-}
-
-void SlippiUser::LogOut()
-{
-	runThread = false;
-	deleteFile();
-
-	UserInfo emptyUser;
-	isLoggedIn = false;
-	std::lock_guard<std::mutex> lk(userInfoMutex);
-	userInfo = emptyUser;
-}
-
-void SlippiUser::OverwriteLatestVersion(std::string version)
-{
-	std::lock_guard<std::mutex> lk(userInfoMutex);
-	userInfo.latestVersion = version;
-}
-
-SlippiUser::UserInfo SlippiUser::GetUserInfo()
-{
-	std::lock_guard<std::mutex> lk(userInfoMutex);
-	return userInfo;
-}
-
-std::vector<std::string> SlippiUser::GetDefaultChatMessages()
-{
-	RustChatMessages *chatMessages = slprs_user_get_default_messages(slprs_exi_device_ptr);
-	return ConvertChatMessagesFromRust(chatMessages);
-}
-
-std::vector<std::string> SlippiUser::GetUserChatMessages()
-{
-	auto messages = GetUserInfo().chatMessages;
-	if (messages.size() == 16)
-		return messages;
-
-	return GetDefaultChatMessages();
-}
-
-bool SlippiUser::IsLoggedIn()
-{
-	return isLoggedIn;
-}
-
-bool SlippiUser::HasSlippiInfo()
-{
-	auto info = GetUserInfo();
-	return !(info.slippi_playKey.empty() || info.slippi_uid.empty());
 }
 
 void SlippiUser::FileListenThread()
@@ -270,134 +159,45 @@ void SlippiUser::FileListenThread()
 	}
 }
 
-static std::string readString(const json &obj, const std::string &key)
+void SlippiUser::LogOut()
 {
-	auto item = obj.find(key);
-	if (item == obj.end() || !item.value().is_string())
-	{
-		return "";
-	}
-
-	return item.value().get<std::string>();
+	runThread = false;
+	slprs_user_logout(slprs_exi_device_ptr);
 }
 
-static std::vector<std::string> readChatMessages(const json &obj)
+void SlippiUser::OverwriteLatestVersion(std::string version)
 {
-	std::vector<std::string> messages;
-	auto item = obj.find("chatMessages");
-	if (item == obj.end() || !item.value().is_array())
-		return messages;
-
-	for (auto &m : item.value())
-	{
-		if (m.is_string())
-			messages.push_back(m.get<std::string>());
-	}
-
-	return messages;
+	slprs_user_overwrite_latest_version(slprs_exi_device_ptr, version.c_str());
 }
 
-SlippiUser::UserInfo SlippiUser::parseFile(std::string fileContents)
+SlippiUser::UserInfo SlippiUser::GetUserInfo()
 {
-	UserInfo info;
-	info.fileContents = fileContents;
+	SlippiUser::UserInfo userInfo;
 
-	auto res = json::parse(fileContents, nullptr, false);
-	if (res.is_discarded() || !res.is_object())
-	{
-		return info;
-	}
+	RustUserInfo *info = slprs_user_get_info(slprs_exi_device_ptr);
+	userInfo.uid = std::string(info->uid);
+	userInfo.playKey = std::string(info->play_key);
+	userInfo.displayName = std::string(info->display_name);
+	userInfo.connectCode = std::string(info->connect_code);
+	userInfo.latestVersion = std::string(info->latest_version);
+	slprs_user_free_info(info);
 
-	info.uid = readString(res, "uid");
-	info.displayName = readString(res, "displayName");
-	info.playKey = readString(res, "playKey");
-	info.connectCode = readString(res, "connectCode");
-	info.lylatVersion = readString(res, "latestVersion");
-	info.chatMessages = readChatMessages(res);
-	auto slp = res.find("slippi");
-	if (slp != res.end() && slp.value().is_object())
-	{
-		info.slippi_uid = readString(slp.value(), "uid");
-		info.slippi_playKey = readString(slp.value(), "playKey");
-		info.slippi_connectCode = readString(slp.value(), "connectCode");
-		info.latestVersion = readString(slp.value(), "latestVersion");
-	}
-
-	return info;
+	return userInfo;
 }
 
-void SlippiUser::deleteFile()
+std::vector<std::string> SlippiUser::GetDefaultChatMessages()
 {
-	std::string userFilePath = File::GetSlippiUserJSONPath();
-	File::Delete(userFilePath);
+	RustChatMessages *chatMessages = slprs_user_get_default_messages(slprs_exi_device_ptr);
+	return ConvertChatMessagesFromRust(chatMessages);
 }
 
-void SlippiUser::overwriteFromServer()
+std::vector<std::string> SlippiUser::GetUserChatMessages()
 {
-	if (!m_curl)
-		return;
+	RustChatMessages *chatMessages = slprs_user_get_messages(slprs_exi_device_ptr);
+	return ConvertChatMessagesFromRust(chatMessages);
+}
 
-	// Generate URL. If this is a beta version, use the beta endpoint
-	std::string url = GetLylatOrigin() + "/users/slp";
-	if (scm_slippi_semver_str.find("beta") != std::string::npos)
-	{
-		url = url + "-beta";
-	}
-
-	auto uid = GetUserInfo().uid;
-
-	// Perform curl request
-	std::string resp;
-	curl_easy_setopt(m_curl, CURLOPT_URL, (url + "/" + uid).c_str());
-	curl_easy_setopt(m_curl, CURLOPT_WRITEDATA, &resp);
-	CURLcode res = curl_easy_perform(m_curl);
-
-	if (res != 0)
-	{
-		ERROR_LOG(SLIPPI, "[User] Error fetching user info from server, code: %d", res);
-		return;
-	}
-
-	long responseCode;
-	curl_easy_getinfo(m_curl, CURLINFO_RESPONSE_CODE, &responseCode);
-	if (responseCode != 200)
-	{
-		ERROR_LOG(SLIPPI, "[User] Server responded with non-success status: %ld", responseCode);
-		return;
-	}
-
-	auto r = json::parse(resp, nullptr, false);
-	if (r.is_discarded() || !r.is_object())
-	{
-		ERROR_LOG(SLIPPI, "[User] Server response is not a JSON object");
-		return;
-	}
-
-	// Overwrite userInfo with data from server
-	std::lock_guard<std::mutex> lk(userInfoMutex);
-	std::string displayName = readString(r, "displayName");
-	if (!displayName.empty())
-		userInfo.displayName = displayName;
-	std::string lylatVersion = readString(r, "lylatVersion");
-	if (!lylatVersion.empty())
-		userInfo.lylatVersion = lylatVersion;
-	auto chatMessages = readChatMessages(r);
-	if (chatMessages.size() == 16)
-		userInfo.chatMessages = chatMessages;
-
-	// The connect code shown in game is the linked Slippi one. Accounts with no Slippi
-	// link get a placeholder, as before the merge.
-	auto slp = r.find("slippi");
-	if (slp != r.end() && slp.value().is_object())
-	{
-		std::string code = readString(slp.value(), "connectCode");
-		std::string version = readString(slp.value(), "latestVersion");
-		userInfo.connectCode = code.empty() ? "TMP#1234" : code;
-		userInfo.latestVersion = version.empty() ? userInfo.lylatVersion : version;
-	}
-	else
-	{
-		userInfo.connectCode = "TMP#1234";
-		userInfo.latestVersion = userInfo.lylatVersion;
-	}
+bool SlippiUser::IsLoggedIn()
+{
+	return slprs_user_get_is_logged_in(slprs_exi_device_ptr);
 }

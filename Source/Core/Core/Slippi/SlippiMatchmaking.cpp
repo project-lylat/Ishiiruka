@@ -103,7 +103,7 @@ std::string SlippiMatchmaking::getMMHostForSearchMode()
 bool SlippiMatchmaking::IsMexMode(SlippiUser* user, bool isCurrentGameMex, OnlinePlayMode mode)
 {
 	// Vanilla Melee goes to Slippi and nowhere else, in every mode; startFindMatch refuses it
-	// without a linked Slippi account. Mods (a sub game other than GALE01, or an m-ex disc) go to
+	// without a Slippi account. `user` is unused (it may be null). Mods (a sub game other than GALE01, or an m-ex disc) go to
 	// Lylat, so they never land in Slippi's random queues with vanilla players.
 	if (SConfig::GetInstance().m_strSubGameID != "GALE01")
 		return true;
@@ -490,15 +490,13 @@ void SlippiMatchmaking::startMatchmaking()
 	connectCodeBuf.insert(connectCodeBuf.end(), m_searchSettings.connectCode.begin(),
 	                      m_searchSettings.connectCode.end());
 
-	// Send the account of the server this search goes to: Slippi's for vanilla, Lylat's otherwise.
-	bool isSlippiMode = !IsMexMode(m_user, isMex, m_searchSettings.mode);
-
 	// Send message to server to create ticket
 	json request;
 	request["type"] = MmMessageType::CREATE_TICKET;
-	request["user"] = {{"uid", isSlippiMode ? userInfo.slippi_uid : userInfo.uid},
-	                   {"playKey", isSlippiMode ? userInfo.slippi_playKey : userInfo.playKey},
-	                   {"connectCode", isSlippiMode ? userInfo.slippi_connectCode : userInfo.connectCode},
+	// Lylat: the account is the one for the server this search goes to (see CEXISlippi's constructor).
+	request["user"] = {{"uid", userInfo.uid},
+	                   {"playKey", userInfo.playKey},
+	                   {"connectCode", userInfo.connectCode},
 	                   {"displayName", userInfo.displayName}};
 	request["search"] = {{"mode", m_searchSettings.mode},
 	                     {"connectCode", SHIFTJISToUTF8(m_searchSettings.connectCode).c_str()},
