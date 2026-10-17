@@ -97,8 +97,8 @@ std::string SlippiMatchmaking::getMMHostForSearchMode()
  * Static Helper to identify if a given MM Mode should go through
  * Slippi Servers or not
  * @param isCurrentGameMex that indicates if current game is Mex Type
- * @param mode
- * @return false if the mode should go through Slippi Servers
+ * @param mode unused: every mode follows the same route
+ * @return false if the search should go through Slippi Servers
  */
 bool SlippiMatchmaking::IsMexMode(SlippiUser* user, bool isCurrentGameMex, OnlinePlayMode mode)
 {
@@ -107,23 +107,12 @@ bool SlippiMatchmaking::IsMexMode(SlippiUser* user, bool isCurrentGameMex, Onlin
 	if (!user->HasSlippiInfo())
 		return true;
 
-	std::string subGameID = SConfig::GetInstance().m_strSubGameID;
-
-	switch (mode)
-	{
-	case OnlinePlayMode::RANKED:
-	case OnlinePlayMode::UNRANKED:
-	case OnlinePlayMode::DIRECT:
-	case OnlinePlayMode::TEAMS:
-		if (subGameID != "GALE01")
-			return true; // always be on Mex mode if not GALE01
-		if (!isCurrentGameMex)
-			return false;
-
+	// Only vanilla Melee goes to Slippi, in every mode. Mods (a sub game other than GALE01, or
+	// an m-ex disc) go to Lylat, so they never land in Slippi's random queues with vanilla players.
+	if (SConfig::GetInstance().m_strSubGameID != "GALE01")
 		return true;
-	default:
-		return false;
-	}
+
+	return isCurrentGameMex;
 }
 
 void SlippiMatchmaking::FindMatch(MatchSearchSettings settings, bool isMex)
@@ -505,10 +494,8 @@ void SlippiMatchmaking::startMatchmaking()
 	connectCodeBuf.insert(connectCodeBuf.end(), m_searchSettings.connectCode.begin(),
 	                      m_searchSettings.connectCode.end());
 
-	// TODO: everything that's not unranked will be routed through slippi
-	bool isSlippiMode =
-	    m_searchSettings.mode != SlippiMatchmaking::OnlinePlayMode::UNRANKED ||
-	    (!isMex && m_searchSettings.mode == SlippiMatchmaking::OnlinePlayMode::UNRANKED && m_user->HasSlippiInfo());
+	// Send the account of the server this search goes to: Slippi's for vanilla, Lylat's otherwise.
+	bool isSlippiMode = !IsMexMode(m_user, isMex, m_searchSettings.mode);
 
 	// Send message to server to create ticket
 	json request;
