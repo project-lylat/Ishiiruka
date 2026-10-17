@@ -170,10 +170,6 @@ struct SConfig : NonCopyable
 	int m_slippiNetplayPort;
 	bool m_slippiForceLanIp = false;
 	bool m_slippiCustomMMEnabled = true;
-	std::string m_slippiCustomMMServerURL = "165.227.213.180";
-	std::string m_slippiCustomMMReportingURL = "https://lylat.gg/reports";
-	// Lylat: origin of the Lylat site (login, user API, QR sign-in). Set it to a local server for testing.
-	std::string m_lylatServerOrigin = "https://lylat.gg";
 	std::string m_slippiLanIp = "";
 	bool m_meleeUserIniBootstrapped = false;
 	bool m_blockingPipes = false;

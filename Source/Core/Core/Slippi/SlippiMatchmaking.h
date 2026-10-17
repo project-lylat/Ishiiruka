@@ -145,6 +145,7 @@ class SlippiMatchmaking
 
 	std::string getSlippiMMHost();
 	std::string getMexMMHost();
+	u16 getMMPortForSearchMode();
 	std::string getMMHostForSearchMode();
 
 	void disconnectFromServer();

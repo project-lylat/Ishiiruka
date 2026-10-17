@@ -69,15 +69,30 @@ std::string SlippiMatchmaking::getSlippiMMHost()
 }
 
 /**
- * Resolves to the Production or development MM Host URI
- * for MEX-type games
+ * Lylat: the matchmaking host for mods, from the environment the Rust extensions were built
+ * for (SLIPPI_ENV, or the SLIPPI_MM_HOST override). A "dev" version does not change it.
  * @return
  */
 std::string SlippiMatchmaking::getMexMMHost()
 {
-	auto prodUrl = SConfig::GetInstance().m_slippiCustomMMServerURL;
-	auto devUrl = MM_HOST_DEV;
-	return scm_slippi_semver_str.find("dev") == std::string::npos ? prodUrl : devUrl;
+	char *rsHost = slprs_lylat_mm_host();
+	std::string host(rsHost);
+	slprs_lylat_free_string(rsHost);
+	return host;
+}
+
+/**
+ * Lylat: the matchmaking port for the search mode; Slippi's for vanilla, the Rust config's
+ * (SLIPPI_MM_PORT override) for mods.
+ * @return
+ */
+u16 SlippiMatchmaking::getMMPortForSearchMode()
+{
+	if (!IsMexMode(m_user, isMex, m_searchSettings.mode))
+		return MM_PORT;
+
+	u16 port = slprs_lylat_mm_port();
+	return port != 0 ? port : MM_PORT;
 }
 
 /**
@@ -408,7 +423,7 @@ void SlippiMatchmaking::startMatchmaking()
 	ERROR_LOG(SLIPPI_ONLINE, "[Matchmaking] HOST: %s", effectiveHost.c_str());
 
 	enet_address_set_host(&addr, effectiveHost.c_str());
-	addr.port = MM_PORT;
+	addr.port = getMMPortForSearchMode();
 
 	m_server = enet_host_connect(m_client, &addr, 3, 0);
 

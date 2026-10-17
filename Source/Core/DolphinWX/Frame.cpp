@@ -514,12 +514,12 @@ CFrame::CFrame(wxFrame *parent, wxWindowID id, const wxString &title, wxRect geo
 	SlippiUser::s_showLoginDialog = [this] { CallAfter([this] { ShowSlippiQrLogin(); }); };
 	SlippiUser::s_onLoggedIn = [this] { CallAfter([this] { OnSlippiLoggedIn(); }); };
 	// Test aid: open the QR sign-in dialog at start (used for screenshots, no game needed).
-	// It refuses to run against the default (production) origin: set [Core] LylatServerOrigin
-	// to a local server first.
+	// It refuses to run against the production site: use a development build (SLIPPI_ENV) or
+	// set SLIPPI_LYLAT_ORIGIN to a local server first.
 	if (std::getenv("LYLAT_QR_LOGIN_AT_START"))
 	{
 		if (SlippiUser::GetLylatOrigin() == "https://lylat.gg")
-			WARN_LOG(SLIPPI_ONLINE, "LYLAT_QR_LOGIN_AT_START ignored: LylatServerOrigin is the production server");
+			WARN_LOG(SLIPPI_ONLINE, "LYLAT_QR_LOGIN_AT_START ignored: the Lylat site is the production server");
 		else
 			CallAfter([this] { ShowSlippiQrLogin(); });
 	}

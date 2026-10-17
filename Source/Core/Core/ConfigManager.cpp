@@ -292,9 +292,6 @@ void SConfig::SaveCoreSettings(IniFile &ini)
 	core->Set("SlippiForceLanIp", m_slippiForceLanIp);
 	core->Set("SlippiLanIp", m_slippiLanIp);
 	core->Set("SlippiEnableCustomMatchmakingServers", m_slippiCustomMMEnabled);
-	core->Set("SlippiCustomMatchmakingServerURL", m_slippiCustomMMServerURL);
-	core->Set("SlippiCustomMatchmakingReportingURL", m_slippiCustomMMReportingURL);
-	core->Set("LylatServerOrigin", m_lylatServerOrigin);
 	core->Set("SlippiReplayMonthFolders", m_slippiReplayMonthFolders);
 	core->Set("SlippiReplayDir", m_strSlippiReplayDir);
 	core->Set("SlippiReplayRegenerateDir", m_strSlippiRegenerateReplayDir);
@@ -643,9 +640,6 @@ void SConfig::LoadCoreSettings(IniFile &ini)
 	core->Get("SlippiForceLanIp", &m_slippiForceLanIp, false);
 	core->Get("SlippiLanIp", &m_slippiLanIp, "");
 	core->Get("SlippiEnableCustomMatchmakingServers", &m_slippiCustomMMEnabled, true);
-	core->Get("SlippiCustomMatchmakingServerURL", &m_slippiCustomMMServerURL, "lylat.gg");
-	core->Get("SlippiCustomMatchmakingReportingURL", &m_slippiCustomMMReportingURL, "https://lylat.gg/reports");
-	core->Get("LylatServerOrigin", &m_lylatServerOrigin, "https://lylat.gg");
 	core->Get("SlippiReplayMonthFolders", &m_slippiReplayMonthFolders, false);
 	std::string default_replay_dir = File::GetHomeDirectory() + DIR_SEP + "Slippi";
 	core->Get("SlippiReplayDir", &m_strSlippiReplayDir, default_replay_dir);

@@ -6,8 +6,6 @@
 #include "Common/StringUtil.h"
 #include "Common/Thread.h"
 
-#include "Core/ConfigManager.h"
-
 #include "SlippiRustExtensions.h"
 
 std::function<void()> SlippiUser::s_showLoginDialog;
@@ -52,11 +50,13 @@ SlippiUser::~SlippiUser()
 		fileListenThread.join();
 }
 
+// Lylat: the site of the environment the Rust extensions were built for (SLIPPI_ENV, or the
+// SLIPPI_LYLAT_ORIGIN override).
 std::string SlippiUser::GetLylatOrigin()
 {
-	std::string origin = SConfig::GetInstance().m_lylatServerOrigin;
-	if (origin.empty())
-		origin = "https://lylat.gg";
+	char *rsOrigin = slprs_lylat_origin();
+	std::string origin(rsOrigin);
+	slprs_lylat_free_string(rsOrigin);
 	while (!origin.empty() && origin.back() == '/')
 		origin.pop_back();
 	return origin;
