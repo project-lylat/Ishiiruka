@@ -44,6 +44,8 @@
 // The Rust library that houses a "shadow" EXI Device that we can call into.
 #include "SlippiRustExtensions.h"
 
+void doConnectionCleanup(std::unique_ptr<Matchmaker> mm, std::unique_ptr<SlippiNetplayClient> nc);
+
 #define FRAME_INTERVAL 900
 #define SLEEP_TIME_MS 8
 #define WRITE_FILE_SLEEP_TIME_MS 85
@@ -165,7 +167,7 @@ CEXISlippi::CEXISlippi()
 	// Lylat: one device per game. Vanilla talks to Slippi's servers with Slippi credentials only (the
 	// account linked in lylat.json, else user.json); mods talk to the Lylat servers with the Lylat
 	// account in lylat.json only. The Lylat addresses come from the Rust build's environment (SLIPPI_ENV).
-	bool lylatServers = SlippiMatchmaking::IsMexMode(nullptr, SConfig::GetInstance().m_slippiCustomMMEnabled && isMex,
+	lylatServers = LylatMatchmaking::IsMexMode(nullptr, SConfig::GetInstance().m_slippiCustomMMEnabled && isMex,
 	                                                 SlippiMatchmaking::OnlinePlayMode::UNRANKED);
 	std::string lylatAccountPath = File::GetSlippiUserJSONPath();
 	slprs_exi_device_ptr = slprs_exi_device_create_lylat(slprs_exi_config, lylatServers, lylatAccountPath.c_str());
@@ -173,7 +175,7 @@ CEXISlippi::CEXISlippi()
 	m_slippiserver = SlippiSpectateServer::getInstance();
 	user = std::make_unique<SlippiUser>(slprs_exi_device_ptr);
 	g_playbackStatus = std::make_unique<SlippiPlaybackStatus>();
-	matchmaking = std::make_unique<SlippiMatchmaking>(slprs_exi_device_ptr, user.get(), isMex);
+	matchmaking = CreateMatchmaker(slprs_exi_device_ptr, user.get(), lylatServers, isMex);
 	gameFileLoader = std::make_unique<SlippiGameFileLoader>();
 	g_replayComm = std::make_unique<SlippiReplayComm>();
 	directCodes = std::make_unique<SlippiDirectCodes>(slprs_exi_device_ptr, SlippiDirectCodes::DIRECT);
@@ -237,7 +239,13 @@ CEXISlippi::~CEXISlippi()
 
 		slprs_exi_device_report_match_status(slprs_exi_device_ptr, activeMatchId.c_str(), "abandoned", false);
 	}
-	handleConnectionCleanup();
+	// The matchmaking thread calls into the Rust device as it winds down, so it is torn down
+	// here, before the device is destroyed, rather than on the cleanup thread. This is bounded:
+	// the STUN and poll loops check the terminated flag and the Rust side cancels without
+	// waiting on its worker. Netplay teardown stays off this thread as before.
+	matchmaking.reset();
+	std::thread cleanup(doConnectionCleanup, std::unique_ptr<Matchmaker>(), std::move(slippi_netplay));
+	cleanup.detach();
 
 	localSelections.Reset();
 
@@ -1930,7 +1938,7 @@ void CEXISlippi::startFindMatch(u8 *payload)
 
 	// Lylat: vanilla Melee only plays on Slippi (see IsMexMode), which needs a Slippi account: the one
 	// linked in lylat.json, or user.json.
-	if (!SlippiMatchmaking::IsMexMode(user.get(), isCustomMMEnabled && isMex, search.mode) && !user->IsLoggedIn())
+	if (!LylatMatchmaking::IsMexMode(user.get(), isCustomMMEnabled && isMex, search.mode) && !user->IsLoggedIn())
 	{
 		forcedError = ERROR_MSG_MISSING_SLIPPI_INFO;
 		return;
@@ -2001,7 +2009,7 @@ void CEXISlippi::startFindMatch(u8 *payload)
 		isEnetInitialized = true;
 	}
 
-	matchmaking->FindMatch(search, isMex);
+	matchmaking->FindMatch(search);
 #endif
 }
 
@@ -2392,8 +2400,6 @@ void CEXISlippi::prepareOnlineMatchState()
         // Check if someone is picking dumb characters in non-direct/mex
 		auto localCharOk = lps.characterId < 26 || isMex;
 		auto remoteCharOk = true;
-
-		INFO_LOG(SLIPPI_ONLINE, "remotePlayerCount: %d", remotePlayerCount);
 		for (int i = 0; i < remotePlayerCount; i++)
 		{
 			if (rps[i].characterId >= 26 && !isMex)
@@ -2484,7 +2490,6 @@ void CEXISlippi::prepareOnlineMatchState()
 
 		// Set rng offset
 		rngOffset = isDecider ? lps.rngOffset : rps[0].rngOffset;
-		INFO_LOG(SLIPPI_ONLINE, "Rng Offset: 0x%x", rngOffset);
 
 		// Check if everyone is the same color
 		auto firstTeamId = orderedSelections[0]->teamId;
@@ -2760,6 +2765,24 @@ void CEXISlippi::prepareOnlineMatchState()
 
 	// Add alt stage mode to output
 	m_read_queue.push_back(static_cast<u8>(alt_stage_mode));
+
+	// Add the values used to determine each player's rank, plus their ranked mmr, so the game can record
+	// them in the replay
+	for (int i = 0; i < 4; i++)
+	{
+		SlippiUser::UserInfo info = i < playerInfo.size() ? playerInfo[i] : SlippiUser::UserInfo();
+		appendWordToBuffer(&m_read_queue, *(u32 *)(&info.rankedRating));
+		appendWordToBuffer(&m_read_queue, static_cast<u32>(info.rankedUpdateCount));
+		appendHalfToBuffer(&m_read_queue, static_cast<u16>(info.rankedGlobalPlacement));
+		appendHalfToBuffer(&m_read_queue, static_cast<u16>(info.rankedRegionalPlacement));
+		appendWordToBuffer(&m_read_queue, *(u32 *)(&info.rankedMmr));
+	}
+
+	// Add whether each player is a bot account so the game can record it in the replay
+	for (int i = 0; i < 4; i++)
+	{
+		m_read_queue.push_back(static_cast<u8>(i < playerInfo.size() && playerInfo[i].isBot));
+	}
 }
 
 u16 CEXISlippi::getRandomStage()
@@ -3072,7 +3095,7 @@ void CEXISlippi::prepareOnlineStatus()
 	m_read_queue.insert(m_read_queue.end(), connectCode.begin(), connectCode.end());
 }
 
-void doConnectionCleanup(std::unique_ptr<SlippiMatchmaking> mm, std::unique_ptr<SlippiNetplayClient> nc)
+void doConnectionCleanup(std::unique_ptr<Matchmaker> mm, std::unique_ptr<SlippiNetplayClient> nc)
 {
 	if (mm)
 		mm.reset();
@@ -3091,7 +3114,7 @@ void CEXISlippi::handleConnectionCleanup()
 
 	// Reset matchmaking
 	auto isMex = SConfig::GetInstance().m_gameType == GAMETYPE_MELEE_MEX;
-	matchmaking = std::make_unique<SlippiMatchmaking>(slprs_exi_device_ptr, user.get(), isMex);
+	matchmaking = CreateMatchmaker(slprs_exi_device_ptr, user.get(), lylatServers, isMex);
 
 	// Disconnect netplay client
 	slippi_netplay = nullptr;

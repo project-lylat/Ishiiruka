@@ -12,6 +12,7 @@
 #include "Core/Slippi/SlippiDirectCodes.h"
 #include "Core/Slippi/SlippiExiTypes.h"
 #include "Core/Slippi/SlippiGameFileLoader.h"
+#include "Core/Slippi/LylatMatchmaking.h"
 #include "Core/Slippi/SlippiMatchmaking.h"
 #include "Core/Slippi/SlippiNetplay.h"
 #include "Core/Slippi/SlippiReplayComm.h"
@@ -354,7 +355,9 @@ class CEXISlippi : public IEXIDevice
 	std::unique_ptr<SlippiUser> user;
 	std::unique_ptr<SlippiGameFileLoader> gameFileLoader;
 	std::unique_ptr<SlippiNetplayClient> slippi_netplay;
-	std::unique_ptr<SlippiMatchmaking> matchmaking;
+	// Lylat: Slippi's matchmaking for vanilla, the Lylat ENet client for mods (LylatMatchmaking.h).
+	std::unique_ptr<Matchmaker> matchmaking;
+	bool lylatServers = false;
 	std::unique_ptr<SlippiDirectCodes> directCodes;
 	std::unique_ptr<SlippiDirectCodes> teamsCodes;
 
