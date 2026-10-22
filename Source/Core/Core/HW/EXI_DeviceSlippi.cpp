@@ -3,6 +3,7 @@
 // Refer to the license.txt file included.
 
 #include "Core/Debugger/Debugger_SymbolMap.h"
+#include <algorithm>
 
 #include "Core/Slippi/SlippiPlayback.h"
 #include "Core/Slippi/SlippiPremadeText.h"
@@ -335,6 +336,10 @@ std::vector<u8> CEXISlippi::generateMetadata()
 	metadata.insert(metadata.end(), {'U', 9, 'l', 'a', 's', 't', 'F', 'r', 'a', 'm', 'e', 'l'});
 	metadata.insert(metadata.end(), lastFrameToWrite.begin(), lastFrameToWrite.end());
 
+	// Lylat: "bookmarks", left out when there are none
+	std::vector<u8> bookmarksToWrite = generateBookmarksMetadata();
+	metadata.insert(metadata.end(), bookmarksToWrite.begin(), bookmarksToWrite.end());
+
 	// Add players elements to metadata, one per player index
 	metadata.insert(metadata.end(), {'U', 7, 'p', 'l', 'a', 'y', 'e', 'r', 's', '{'});
 
@@ -453,6 +458,79 @@ void CEXISlippi::FileWriteThread(void)
 	}
 }
 
+// Lylat: payload is the 0xF0 command: s32 press frame (big endian), u8 seconds, u8 final.
+void CEXISlippi::addBookmark(u8 *payload)
+{
+	BookmarkMark mark;
+	mark.pressFrame = (s32)(payload[1] << 24 | payload[2] << 16 | payload[3] << 8 | payload[4]);
+	mark.seconds = payload[5];
+	bool isFinal = payload[6] != 0;
+	if (mark.seconds != 10 && mark.seconds != 30 && mark.seconds != 60)
+		return;
+
+	if (isFinal)
+	{
+		bookmarks.push_back(mark);
+		hasPendingBookmark = false;
+	}
+	else
+	{
+		// A newer press replaces the undecided mark; its decision comes later as final.
+		pendingBookmark = mark;
+		hasPendingBookmark = true;
+	}
+}
+
+// Lylat: the "bookmarks" metadata element (https://github.com/project-lylat/slippi-wiki/pull/1), the
+// same rules as the native port's writer (slp_clips_normalize): each mark covers the seconds before
+// the press (not before the first frame) and 3 s after; the ranges are sorted, overlapping and
+// touching ones are merged, endFrame is clamped to this file's lastFrame, and empty ranges dropped.
+std::vector<u8> CEXISlippi::generateBookmarksMetadata()
+{
+	std::vector<std::pair<s32, s32>> ranges;
+	auto addRange = [&](const BookmarkMark &mark) {
+		s64 start = (s64)mark.pressFrame - (s64)mark.seconds * 60;
+		s64 end = (s64)mark.pressFrame + 180;
+		if (start < Slippi::GAME_FIRST_FRAME)
+			start = Slippi::GAME_FIRST_FRAME;
+		if (end > lastFrame)
+			end = lastFrame;
+		if (end > start)
+			ranges.emplace_back((s32)start, (s32)end);
+	};
+	for (auto &mark : bookmarks)
+		addRange(mark);
+	if (hasPendingBookmark)
+		addRange(pendingBookmark);
+
+	std::sort(ranges.begin(), ranges.end());
+	std::vector<std::pair<s32, s32>> merged;
+	for (auto &range : ranges)
+	{
+		if (!merged.empty() && range.first <= merged.back().second + 1)
+			merged.back().second = std::max(merged.back().second, range.second);
+		else
+			merged.push_back(range);
+	}
+
+	std::vector<u8> out;
+	if (merged.empty())
+		return out;
+	out.insert(out.end(), {'U', 9, 'b', 'o', 'o', 'k', 'm', 'a', 'r', 'k', 's', '['});
+	for (auto &range : merged)
+	{
+		auto start = int32ToVector(range.first);
+		auto end = int32ToVector(range.second);
+		out.insert(out.end(), {'{', 'U', 10, 's', 't', 'a', 'r', 't', 'F', 'r', 'a', 'm', 'e', 'l'});
+		out.insert(out.end(), start.begin(), start.end());
+		out.insert(out.end(), {'U', 8, 'e', 'n', 'd', 'F', 'r', 'a', 'm', 'e', 'l'});
+		out.insert(out.end(), end.begin(), end.end());
+		out.push_back('}');
+	}
+	out.push_back(']');
+	return out;
+}
+
 void CEXISlippi::writeToFile(std::unique_ptr<WriteMessage> msg)
 {
 	if (!msg)
@@ -486,6 +564,10 @@ void CEXISlippi::writeToFile(std::unique_ptr<WriteMessage> msg)
 		// Reset lastFrame
 		lastFrame = Slippi::GAME_FIRST_FRAME;
 
+		// Lylat: no bookmarks yet
+		bookmarks.clear();
+		hasPendingBookmark = false;
+
 		// Get display names and connection codes from slippi netplay client
 		if (slippi_netplay)
 		{
@@ -502,6 +584,13 @@ void CEXISlippi::writeToFile(std::unique_ptr<WriteMessage> msg)
 	// If no file, do nothing
 	if (!m_file)
 	{
+		return;
+	}
+
+	// Lylat: a bookmark is kept for the metadata, not written
+	if (fileOption == "bookmark")
+	{
+		addBookmark(payload);
 		return;
 	}
 
@@ -3592,6 +3681,9 @@ void CEXISlippi::DMAWrite(u32 _uAddr, u32 _uSize)
 			handleGetRank();
 			break;
 		}
+		case CMD_LYLAT_BOOKMARK:
+			writeToFileAsync(&memPtr[bufLoc], payloadLen + 1, "bookmark");
+			break;
 		case CMD_FETCH_RANK:
 		{
 			slprs_fetch_match_result(slprs_exi_device_ptr, recentMmResult.id.c_str());

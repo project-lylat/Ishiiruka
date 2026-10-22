@@ -109,7 +109,11 @@ class CEXISlippi : public IEXIDevice
 		CMD_PREMADE_TEXT_LOAD = 0xE2,
 		CMD_GET_RANK = 0xE3,
 		CMD_FETCH_RANK = 0xE4,
-		CMD_GET_RANK_VISIBILITY = 0xE5
+		CMD_GET_RANK_VISIBILITY = 0xE5,
+
+		// Lylat: a bookmark from the Bookmarks addon (lylat-ssbm-ngc): s32 press frame, u8 seconds,
+		// u8 final. Kept for the replay's "bookmarks" metadata, never written to the raw stream.
+		CMD_LYLAT_BOOKMARK = 0xF0
 	};
 
 	enum
@@ -198,6 +202,7 @@ class CEXISlippi : public IEXIDevice
 	    {CMD_GET_RANK, 0x0},
 	    {CMD_FETCH_RANK, 0x0},
 	    {CMD_GET_RANK_VISIBILITY, 0x0},
+	    {CMD_LYLAT_BOOKMARK, 0x6},
 	};
 
 	struct WriteMessage
@@ -220,6 +225,18 @@ class CEXISlippi : public IEXIDevice
 	// vars for metadata generation
 	time_t gameStartTime;
 	s32 lastFrame;
+	// Lylat: bookmarks of the replay being written. Decided marks, and the newest undecided one
+	// (kept as it is when the match ends before more presses could come).
+	struct BookmarkMark
+	{
+		s32 pressFrame;
+		u8 seconds;
+	};
+	std::vector<BookmarkMark> bookmarks;
+	bool hasPendingBookmark = false;
+	BookmarkMark pendingBookmark{};
+	void addBookmark(u8 *payload);
+	std::vector<u8> generateBookmarksMetadata();
 	std::unordered_map<u8, std::unordered_map<u8, u32>> characterUsage;
 
 	void updateMetadataFields(u8 *payload, u32 length);
