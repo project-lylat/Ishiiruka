@@ -71,11 +71,6 @@ std::string LylatMatchmaking::getSlippiMMHost()
 	return scm_slippi_semver_str.find("dev") == std::string::npos ? prodUrl : devUrl;
 }
 
-/**
- * Lylat: the matchmaking host for mods, from the environment the Rust extensions were built
- * for (SLIPPI_ENV, or the SLIPPI_MM_HOST override). A "dev" version does not change it.
- * @return
- */
 std::string LylatMatchmaking::getMexMMHost()
 {
 	char *rsHost = slprs_lylat_mm_host();
@@ -84,11 +79,6 @@ std::string LylatMatchmaking::getMexMMHost()
 	return host;
 }
 
-/**
- * Lylat: the matchmaking port for the search mode; Slippi's for vanilla, the Rust config's
- * (SLIPPI_MM_PORT override) for mods.
- * @return
- */
 u16 LylatMatchmaking::getMMPortForSearchMode()
 {
 	if (!IsMexMode(m_user, isMex, m_searchSettings.mode))
@@ -120,9 +110,6 @@ std::string LylatMatchmaking::getMMHostForSearchMode()
  */
 bool LylatMatchmaking::IsMexMode(SlippiUser* user, bool isCurrentGameMex, OnlinePlayMode mode)
 {
-	// Vanilla Melee goes to Slippi and nowhere else, in every mode; startFindMatch refuses it
-	// without a Slippi account. `user` is unused (it may be null). Mods (a sub game other than GALE01, or an m-ex disc) go to
-	// Lylat, so they never land in Slippi's random queues with vanilla players.
 	if (SConfig::GetInstance().m_strSubGameID != "GALE01")
 		return true;
 
@@ -354,7 +341,6 @@ void LylatMatchmaking::startMatchmaking()
 	int retryCount = 0;
 
 	// If IsFixedRules mode, don't allow ISO's that are known to desync.
-	// Lylat: searches routed to the Lylat server (mods) skip Slippi's ISO list.
 	if (SlippiMatchmaking::IsFixedRulesMode(m_searchSettings.mode) && !IsMexMode(m_user, isMex, m_searchSettings.mode))
 	{
 		auto check = slprs_get_iso_md5_check(slprs_exi_device_ptr);
@@ -501,7 +487,6 @@ void LylatMatchmaking::startMatchmaking()
 	// Send message to server to create ticket
 	json request;
 	request["type"] = MmMessageType::CREATE_TICKET;
-	// Lylat: the account is the one for the server this search goes to (see CEXISlippi's constructor).
 	request["user"] = {{"uid", userInfo.uid},
 	                   {"playKey", userInfo.playKey},
 	                   {"connectCode", userInfo.connectCode},

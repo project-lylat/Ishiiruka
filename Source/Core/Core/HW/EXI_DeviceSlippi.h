@@ -355,7 +355,6 @@ class CEXISlippi : public IEXIDevice
 	std::unique_ptr<SlippiUser> user;
 	std::unique_ptr<SlippiGameFileLoader> gameFileLoader;
 	std::unique_ptr<SlippiNetplayClient> slippi_netplay;
-	// Lylat: Slippi's matchmaking for vanilla, the Lylat ENet client for mods (LylatMatchmaking.h).
 	std::unique_ptr<Matchmaker> matchmaking;
 	bool lylatServers = false;
 	std::unique_ptr<SlippiDirectCodes> directCodes;

@@ -16,10 +16,6 @@
 // cannot outlive the EXI device - but we control that and just need to do our due diligence
 // when making changes.
 //
-// Lylat: the Rust device reads the account (see CEXISlippi's constructor). Vanilla takes Slippi
-// credentials only: the Slippi account linked in `lylat.json`, else `user.json`. Mods take the
-// Lylat account in `lylat.json` and nothing else. This class keeps the Lylat sign-in: the QR
-// dialog, the browser page and the "logged in" callback.
 class SlippiUser
 {
   public:
@@ -60,15 +56,11 @@ class SlippiUser
 	std::vector<std::string> GetDefaultChatMessages();
 	bool IsLoggedIn();
 
-	// Lylat: the base URL of the Lylat site (QR device sign-in).
 	static std::string GetLylatOrigin();
-	// Lylat: opens the browser login page (the "manual login" flow).
 	static void OpenBrowserLogInPage();
 
-	// Lylat: set by the UI. Called by OpenLogInPage to show the QR sign-in dialog; when it
-	// is not set, the browser login page opens instead. Called from the emulation thread.
+	// Called from the emulation thread; when unset, the browser login page opens.
 	static std::function<void()> s_showLoginDialog;
-	// Lylat: set by the UI. Called once a login is picked up by the file watcher.
 	static std::function<void()> s_onLoggedIn;
 
   protected:
@@ -78,7 +70,6 @@ class SlippiUser
 	// Do *not* do any cleanup of this! The EXI device will handle it.
 	uintptr_t slprs_exi_device_ptr;
 
-	// Lylat: waits for the sign-in to write the account file, then calls s_onLoggedIn.
 	std::thread fileListenThread;
 	std::atomic<bool> runThread{false};
 };

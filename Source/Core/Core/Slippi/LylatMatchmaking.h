@@ -1,14 +1,5 @@
 #pragma once
 
-// Lylat: matchmaking for a Lylat build.
-//
-// Slippi's SlippiMatchmaking talks to Slippi's WebSocket matchmaking service (through the Rust
-// extensions) with STUN. The Lylat server still speaks the older ENet protocol, so mods use
-// LylatMatchmaking, which is the ENet client Ishiiruka had before Slippi's change, kept as it was.
-// The EXI device holds either one behind the Matchmaker interface, chosen when the game boots
-// (CreateMatchmaker): vanilla gets Slippi's, mods get Lylat's. SlippiMatchmaking stays exactly as
-// upstream wrote it.
-
 #include "Common/CommonTypes.h"
 #include "Common/Thread.h"
 #include "Core/Slippi/SlippiMatchmaking.h"

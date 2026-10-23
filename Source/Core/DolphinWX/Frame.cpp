@@ -509,8 +509,7 @@ CFrame::CFrame(wxFrame *parent, wxWindowID id, const wxString &title, wxRect geo
 	SetConsoleCtrlHandler(s_ctrl_handler, TRUE);
 #endif
 
-	// Lylat: the in-game login shows the QR sign-in dialog. Both hooks are called from
-	// emulation threads, so they hop to the main thread.
+	// Both hooks are called from emulation threads.
 	SlippiUser::s_showLoginDialog = [this] { CallAfter([this] { ShowSlippiQrLogin(); }); };
 	SlippiUser::s_onLoggedIn = [this] { CallAfter([this] { OnSlippiLoggedIn(); }); };
 	// Test aid: open the QR sign-in dialog at start (used for screenshots, no game needed).

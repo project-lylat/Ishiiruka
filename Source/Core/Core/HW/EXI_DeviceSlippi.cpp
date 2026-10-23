@@ -164,9 +164,6 @@ CEXISlippi::CEXISlippi()
 	slprs_exi_config.scm_slippi_semver_str = scm_slippi_semver_str.c_str();
 	slprs_exi_config.osd_add_msg_fn = OSDMessageHandler;
 
-	// Lylat: one device per game. Vanilla talks to Slippi's servers with Slippi credentials only (the
-	// account linked in lylat.json, else user.json); mods talk to the Lylat servers with the Lylat
-	// account in lylat.json only. The Lylat addresses come from the Rust build's environment (SLIPPI_ENV).
 	lylatServers = LylatMatchmaking::IsMexMode(nullptr, SConfig::GetInstance().m_slippiCustomMMEnabled && isMex,
 	                                                 SlippiMatchmaking::OnlinePlayMode::UNRANKED);
 	std::string lylatAccountPath = File::GetSlippiUserJSONPath();
@@ -1936,8 +1933,6 @@ void CEXISlippi::startFindMatch(u8 *payload)
 	auto isMex = SConfig::GetInstance().m_gameType == GAMETYPE_MELEE_MEX;
 	auto isCustomMMEnabled = SConfig::GetInstance().m_slippiCustomMMEnabled;
 
-	// Lylat: vanilla Melee only plays on Slippi (see IsMexMode), which needs a Slippi account: the one
-	// linked in lylat.json, or user.json.
 	if (!LylatMatchmaking::IsMexMode(user.get(), isCustomMMEnabled && isMex, search.mode) && !user->IsLoggedIn())
 	{
 		forcedError = ERROR_MSG_MISSING_SLIPPI_INFO;
@@ -3076,8 +3071,6 @@ void CEXISlippi::prepareOnlineStatus()
 	if (isLoggedIn)
 	{
 		// Check if we have the latest version, and if not, indicate we need to update
-		// Lylat: the latest version comes from the server the device talks to, Slippi's for
-		// vanilla and Lylat's for mods.
 		version::Semver200_version latestVersion(userInfo.latestVersion);
 		version::Semver200_version currentVersion(scm_slippi_semver_str);
 
@@ -3172,7 +3165,6 @@ void CEXISlippi::handleReportGame(const SlippiExiTypes::ReportGameQuery &query)
 
 	// We pass `uid` and `playKey` here until the User side of things is
 	// ported to Rust.
-	// Lylat: the device reports to the server it talks to (see the constructor), with its account.
 	uintptr_t gameReport = slprs_game_report_create(userInfo.uid.c_str(), userInfo.playKey.c_str(), onlineMode,
 	                                                matchId.c_str(), durationFrames, gameIndex, tiebreakIndex,
 	                                                winnerIdx, gameEndMethod, lrasInitiator, stageId);

@@ -271,7 +271,6 @@ void CFrame::OpenGeneralConfiguration(wxWindowID tab_id)
 	m_main_config_dialog->SetFocus();
 }
 
-// Lylat: the QR sign-in dialog. Pressing Login again asks for a fresh code.
 void CFrame::ShowSlippiQrLogin()
 {
 	if (!m_slippi_qr_login_dialog)
@@ -284,7 +283,6 @@ void CFrame::ShowSlippiQrLogin()
 	m_slippi_qr_login_dialog->SetFocus();
 }
 
-// Lylat: the game picked up a new account file (QR sign-in or browser login).
 void CFrame::OnSlippiLoggedIn()
 {
 	if (m_slippi_qr_login_dialog)
