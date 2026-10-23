@@ -111,8 +111,7 @@ class CEXISlippi : public IEXIDevice
 		CMD_FETCH_RANK = 0xE4,
 		CMD_GET_RANK_VISIBILITY = 0xE5,
 
-		// Lylat: a bookmark from the Bookmarks addon (lylat-ssbm-ngc): s32 press frame, u8 seconds,
-		// u8 final. Kept for the replay's "bookmarks" metadata, never written to the raw stream.
+		// s32 press frame, u8 seconds, u8 final
 		CMD_LYLAT_BOOKMARK = 0xF0
 	};
 
@@ -225,8 +224,6 @@ class CEXISlippi : public IEXIDevice
 	// vars for metadata generation
 	time_t gameStartTime;
 	s32 lastFrame;
-	// Lylat: bookmarks of the replay being written. Decided marks, and the newest undecided one
-	// (kept as it is when the match ends before more presses could come).
 	struct BookmarkMark
 	{
 		s32 pressFrame;

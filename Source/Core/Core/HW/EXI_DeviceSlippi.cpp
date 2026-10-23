@@ -336,7 +336,6 @@ std::vector<u8> CEXISlippi::generateMetadata()
 	metadata.insert(metadata.end(), {'U', 9, 'l', 'a', 's', 't', 'F', 'r', 'a', 'm', 'e', 'l'});
 	metadata.insert(metadata.end(), lastFrameToWrite.begin(), lastFrameToWrite.end());
 
-	// Lylat: "bookmarks", left out when there are none
 	std::vector<u8> bookmarksToWrite = generateBookmarksMetadata();
 	metadata.insert(metadata.end(), bookmarksToWrite.begin(), bookmarksToWrite.end());
 
@@ -458,7 +457,6 @@ void CEXISlippi::FileWriteThread(void)
 	}
 }
 
-// Lylat: payload is the 0xF0 command: s32 press frame (big endian), u8 seconds, u8 final.
 void CEXISlippi::addBookmark(u8 *payload)
 {
 	BookmarkMark mark;
@@ -475,16 +473,11 @@ void CEXISlippi::addBookmark(u8 *payload)
 	}
 	else
 	{
-		// A newer press replaces the undecided mark; its decision comes later as final.
 		pendingBookmark = mark;
 		hasPendingBookmark = true;
 	}
 }
 
-// Lylat: the "bookmarks" metadata element (https://github.com/project-lylat/slippi-wiki/pull/1), the
-// same rules as the native port's writer (slp_clips_normalize): each mark covers the seconds before
-// the press (not before the first frame) and 3 s after; the ranges are sorted, overlapping and
-// touching ones are merged, endFrame is clamped to this file's lastFrame, and empty ranges dropped.
 std::vector<u8> CEXISlippi::generateBookmarksMetadata()
 {
 	std::vector<std::pair<s32, s32>> ranges;
@@ -564,7 +557,6 @@ void CEXISlippi::writeToFile(std::unique_ptr<WriteMessage> msg)
 		// Reset lastFrame
 		lastFrame = Slippi::GAME_FIRST_FRAME;
 
-		// Lylat: no bookmarks yet
 		bookmarks.clear();
 		hasPendingBookmark = false;
 
@@ -587,7 +579,6 @@ void CEXISlippi::writeToFile(std::unique_ptr<WriteMessage> msg)
 		return;
 	}
 
-	// Lylat: a bookmark is kept for the metadata, not written
 	if (fileOption == "bookmark")
 	{
 		addBookmark(payload);
