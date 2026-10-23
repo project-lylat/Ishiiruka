@@ -769,6 +769,9 @@
     <ClCompile Include="Slippi\SlippiSpectate.cpp">
       <Filter>Slippi</Filter>
     </ClCompile>
+    <ClCompile Include="Slippi\LylatMatchmaking.cpp">
+      <Filter>Slippi</Filter>
+    </ClCompile>
     <ClCompile Include="Slippi\SlippiMatchmaking.cpp">
       <Filter>Slippi</Filter>
     </ClCompile>
@@ -1341,6 +1344,9 @@
       <Filter>Slippi</Filter>
     </ClInclude>
     <ClInclude Include="Slippi\SlippiSpectate.h">
+      <Filter>Slippi</Filter>
+    </ClInclude>
+    <ClInclude Include="Slippi\LylatMatchmaking.h">
       <Filter>Slippi</Filter>
     </ClInclude>
     <ClInclude Include="Slippi\SlippiMatchmaking.h">

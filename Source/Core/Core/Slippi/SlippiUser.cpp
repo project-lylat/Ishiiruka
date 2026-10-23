@@ -50,8 +50,6 @@ SlippiUser::~SlippiUser()
 		fileListenThread.join();
 }
 
-// Lylat: the site of the environment the Rust extensions were built for (SLIPPI_ENV, or the
-// SLIPPI_LYLAT_ORIGIN override).
 std::string SlippiUser::GetLylatOrigin()
 {
 	char *rsOrigin = slprs_lylat_origin();
@@ -64,7 +62,7 @@ std::string SlippiUser::GetLylatOrigin()
 
 bool SlippiUser::AttemptLogin()
 {
-	// Lylat: some browsers save the file the login page writes as lylat.json.txt.
+	// Some browsers save it as lylat.json.txt.
 	std::string userFilePath = File::GetSlippiUserJSONPath();
 	std::string userFilePathTxt = userFilePath + ".txt";
 	if (File::Exists(userFilePathTxt))
@@ -85,8 +83,6 @@ bool SlippiUser::AttemptLogin()
 	return slprs_user_attempt_login(slprs_exi_device_ptr);
 }
 
-// Lylat: the browser login page (the "manual login" flow), for the QR dialog's "Manual login".
-// The page writes lylat.json to the given path, the same way the Slippi page wrote user.json.
 void SlippiUser::OpenBrowserLogInPage()
 {
 	std::string url = GetLylatOrigin() + "/users/enable";
@@ -111,8 +107,6 @@ void SlippiUser::OpenBrowserLogInPage()
 	RunSystemCommand(command);
 }
 
-// Lylat: the in-game "log in" action. The UI shows the QR sign-in dialog when it has
-// registered one; the dialog falls back to the browser page itself (404 or "Manual login").
 void SlippiUser::OpenLogInPage()
 {
 	if (s_showLoginDialog)
@@ -129,8 +123,6 @@ bool SlippiUser::UpdateApp()
 	return slprs_user_update_app(slprs_exi_device_ptr);
 }
 
-// Lylat: polls like the Rust watcher (slprs_user_listen_for_login) so the UI can be told
-// when the sign-in lands.
 void SlippiUser::ListenForLogIn()
 {
 	if (runThread)
