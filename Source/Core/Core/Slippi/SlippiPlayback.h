@@ -6,9 +6,15 @@
 #include <open-vcdiff/src/google/vcdecoder.h>
 #include <open-vcdiff/src/google/vcencoder.h>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "Common/CommonTypes.h"
+
+// Addon Loader and Lylat Online Options: replays leave them out so stock Slippi plays them unchanged
+const std::unordered_set<u32> LYLAT_INJECTIONS = {0x801A4C94, 0x80229944, 0x802299F8};
+
+std::vector<u8> StripGeckoCodes(const std::vector<u8> &codes, const std::unordered_set<u32> &addresses);
 
 class SlippiPlaybackStatus
 {

@@ -457,12 +457,60 @@ void CEXISlippi::FileWriteThread(void)
 	}
 }
 
+void CEXISlippi::writeRecordingEvent(u8 *payload, u32 length, std::string fileOption)
+{
+	writeToFileAsync(payload, length, fileOption);
+	m_slippiserver->write(payload, length);
+	slprs_exi_device_reporter_push_replay_data(slprs_exi_device_ptr, payload, length);
+}
+
+void CEXISlippi::handleGeckoListSplit(u8 *payload, u32 length)
+{
+	u8 *data = &payload[1];
+	u16 blockSize = std::min<u16>(data[SPLIT_MESSAGE_DATA_LEN] << 8 | data[SPLIT_MESSAGE_DATA_LEN + 1],
+	                              SPLIT_MESSAGE_DATA_LEN);
+	recordedGeckoList.insert(recordedGeckoList.end(), data, data + blockSize);
+	if (!data[SPLIT_MESSAGE_DATA_LEN + 3])
+		return;
+
+	std::vector<u8> codes = StripGeckoCodes(recordedGeckoList, LYLAT_INJECTIONS);
+	recordedGeckoList.clear();
+
+	std::vector<u8> message(length, 0);
+	message[0] = CMD_SPLIT_MESSAGE;
+	message[1 + SPLIT_MESSAGE_DATA_LEN + 2] = CMD_GECKO_LIST;
+	size_t pos = 0;
+	do
+	{
+		size_t size = std::min<size_t>(codes.size() - pos, SPLIT_MESSAGE_DATA_LEN);
+		std::fill(message.begin() + 1, message.begin() + 1 + SPLIT_MESSAGE_DATA_LEN, 0);
+		std::copy(codes.begin() + pos, codes.begin() + pos + size, message.begin() + 1);
+		message[1 + SPLIT_MESSAGE_DATA_LEN] = (u8)(size >> 8);
+		message[1 + SPLIT_MESSAGE_DATA_LEN + 1] = (u8)size;
+		pos += size;
+		message[1 + SPLIT_MESSAGE_DATA_LEN + 3] = pos >= codes.size() ? 1 : 0;
+		writeRecordingEvent(message.data(), length, "");
+	} while (pos < codes.size());
+
+	u8 listSize[2] = {(u8)(codes.size() >> 8), (u8)codes.size()};
+	writeToFileAsync(listSize, 2, "geckoListSize");
+}
+
+void CEXISlippi::HandleBookmark(const u8 *p, u32 n)
+{
+	if (n < 6)
+		return;
+	u8 mark[6];
+	std::copy(p, p + 6, mark);
+	writeToFileAsync(mark, 6, "bookmark");
+}
+
 void CEXISlippi::addBookmark(u8 *payload)
 {
 	BookmarkMark mark;
-	mark.pressFrame = (s32)(payload[1] << 24 | payload[2] << 16 | payload[3] << 8 | payload[4]);
-	mark.seconds = payload[5];
-	bool isFinal = payload[6] != 0;
+	mark.pressFrame = (s32)(payload[0] << 24 | payload[1] << 16 | payload[2] << 8 | payload[3]);
+	mark.seconds = payload[4];
+	bool isFinal = payload[5] != 0;
 	if (mark.seconds != 10 && mark.seconds != 30 && mark.seconds != 60)
 		return;
 
@@ -551,6 +599,13 @@ void CEXISlippi::writeToFile(std::unique_ptr<WriteMessage> msg)
 		// Used to keep track of how many bytes have been written to the file
 		writtenByteCount = 0;
 
+		geckoListSizeOffset = 0;
+		for (u32 i = 2; i + 2 < length; i += 3)
+		{
+			if (payload[i] == CMD_GECKO_LIST)
+				geckoListSizeOffset = (u32)headerBytes.size() + i + 1;
+		}
+
 		// Used to track character usage (sheik/zelda)
 		characterUsage.clear();
 
@@ -582,6 +637,17 @@ void CEXISlippi::writeToFile(std::unique_ptr<WriteMessage> msg)
 	if (fileOption == "bookmark")
 	{
 		addBookmark(payload);
+		return;
+	}
+
+	if (fileOption == "geckoListSize")
+	{
+		if (geckoListSizeOffset)
+		{
+			m_file.Seek(geckoListSizeOffset, SEEK_SET);
+			m_file.WriteBytes(payload, length);
+			m_file.Seek(0, SEEK_END);
+		}
 		return;
 	}
 
@@ -3491,8 +3557,31 @@ void CEXISlippi::DMAWrite(u32 _uAddr, u32 _uSize)
 	}
 
 	u8 byte = memPtr[0];
+	if (byte == CMD_LYLAT_PROBE)
+	{
+		// Status OK, length 20, "LYLT" version 1, no services, max_xfer 32, no sockets
+		m_read_queue = {0, 0, 0, 20, 'L', 'Y', 'L', 'T', 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 0, 0};
+		return;
+	}
+
+	if (byte == CMD_LYLAT_EXT)
+	{
+		m_read_queue.clear();
+		if (_uSize >= 2 && memPtr[1] == LYLAT_EXT_BOOKMARK)
+		{
+			HandleBookmark(&memPtr[2], _uSize - 2);
+			m_read_queue.insert(m_read_queue.end(), {0, 0, 0, 0});
+		}
+		else
+		{
+			m_read_queue.insert(m_read_queue.end(), {3, 0, 0, 0});
+		}
+		return;
+	}
+
 	if (byte == CMD_RECEIVE_COMMANDS)
 	{
+		recordedGeckoList.clear();
 		time(&gameStartTime); // Store game start time
 		u8 receiveCommandsLen = memPtr[1];
 		configureCommands(&memPtr[1], receiveCommandsLen);
@@ -3672,18 +3761,20 @@ void CEXISlippi::DMAWrite(u32 _uAddr, u32 _uSize)
 			handleGetRank();
 			break;
 		}
-		case CMD_LYLAT_BOOKMARK:
-			writeToFileAsync(&memPtr[bufLoc], payloadLen + 1, "bookmark");
-			break;
 		case CMD_FETCH_RANK:
 		{
 			slprs_fetch_match_result(slprs_exi_device_ptr, recentMmResult.id.c_str());
 			break;
 		}
+		case CMD_SPLIT_MESSAGE:
+			if (payloadLen >= SPLIT_MESSAGE_DATA_LEN + 4 &&
+			    memPtr[bufLoc + 1 + SPLIT_MESSAGE_DATA_LEN + 2] == CMD_GECKO_LIST)
+				handleGeckoListSplit(&memPtr[bufLoc], payloadLen + 1);
+			else
+				writeRecordingEvent(&memPtr[bufLoc], payloadLen + 1, "");
+			break;
 		default:
-			writeToFileAsync(&memPtr[bufLoc], payloadLen + 1, "");
-			m_slippiserver->write(&memPtr[bufLoc], payloadLen + 1);
-			slprs_exi_device_reporter_push_replay_data(slprs_exi_device_ptr, &memPtr[bufLoc], payloadLen + 1);
+			writeRecordingEvent(&memPtr[bufLoc], payloadLen + 1, "");
 			break;
 		}
 
