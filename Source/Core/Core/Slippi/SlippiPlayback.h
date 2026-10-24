@@ -11,8 +11,8 @@
 
 #include "Common/CommonTypes.h"
 
-// Addon Loader and Lylat Online Options: replays leave them out so stock Slippi plays them unchanged
-const std::unordered_set<u32> LYLAT_INJECTIONS = {0x801A4C94, 0x80229944, 0x802299F8};
+// Addon Loader, Lylat Online Options and Bookmarks: replays leave them out so stock Slippi plays them unchanged
+const std::unordered_set<u32> LYLAT_INJECTIONS = {0x801A4C94, 0x80229944, 0x802299F8, 0x8016D800};
 
 std::vector<u8> StripGeckoCodes(const std::vector<u8> &codes, const std::unordered_set<u32> &addresses);
 
