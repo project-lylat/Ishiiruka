@@ -49,6 +49,7 @@ class CEXISlippi : public IEXIDevice
 		CMD_UNKNOWN = 0x0,
 
 		// Recording
+		CMD_SPLIT_MESSAGE = 0x10,
 		CMD_RECEIVE_COMMANDS = 0x35,
 		CMD_RECEIVE_GAME_INFO = 0x36,
 		CMD_RECEIVE_POST_FRAME_UPDATE = 0x38,
@@ -109,8 +110,20 @@ class CEXISlippi : public IEXIDevice
 		CMD_PREMADE_TEXT_LOAD = 0xE2,
 		CMD_GET_RANK = 0xE3,
 		CMD_FETCH_RANK = 0xE4,
-		CMD_GET_RANK_VISIBILITY = 0xE5
+		CMD_GET_RANK_VISIBILITY = 0xE5,
+
+		// Lylat commands, one per DMA: PROBE, then EXT [0xFF][sub][fields]
+		CMD_LYLAT_PROBE = 0xF0,
+		CMD_LYLAT_EXT = 0xFF,
 	};
+
+	enum
+	{
+		// s32 press frame, u8 seconds, u8 final
+		LYLAT_EXT_BOOKMARK = 0x23,
+	};
+
+	static const u32 SPLIT_MESSAGE_DATA_LEN = 512;
 
 	enum
 	{
@@ -212,6 +225,10 @@ class CEXISlippi : public IEXIDevice
 
 	// .slp File creation stuff
 	u32 writtenByteCount = 0;
+	u32 geckoListSizeOffset = 0;
+	std::vector<u8> recordedGeckoList;
+	void handleGeckoListSplit(u8 *payload, u32 length);
+	void writeRecordingEvent(u8 *payload, u32 length, std::string fileOption);
 
 	// cout stuff
 	bool outputCurrentFrame = false;
@@ -220,6 +237,17 @@ class CEXISlippi : public IEXIDevice
 	// vars for metadata generation
 	time_t gameStartTime;
 	s32 lastFrame;
+	struct BookmarkMark
+	{
+		s32 pressFrame;
+		u8 seconds;
+	};
+	std::vector<BookmarkMark> bookmarks;
+	bool hasPendingBookmark = false;
+	BookmarkMark pendingBookmark{};
+	void HandleBookmark(const u8 *p, u32 n);
+	void addBookmark(u8 *payload);
+	std::vector<u8> generateBookmarksMetadata();
 	std::unordered_map<u8, std::unordered_map<u8, u32>> characterUsage;
 
 	void updateMetadataFields(u8 *payload, u32 length);
