@@ -10,16 +10,26 @@
 #include <arpa/inet.h>
 #endif
 
+#include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 #include <json.hpp>
 
+// Defined in SlippiRustExtensions.h. Forward-declared here because not every project that
+// includes this header has the Rust include path.
+struct SlippiStunObservation;
+
 using json = nlohmann::json;
 
+// Drives a search for opponents. The conversation with the matchmaking service happens on the
+// Rust side; this class owns the UDP socket that will be used for netplay, learns its public
+// address through STUN, keeps its NAT mapping alive while queued, and connects to the opponents
+// once a match arrives.
 class SlippiMatchmaking
 {
   public:
-	SlippiMatchmaking(uintptr_t rs_exi_device_ptr, SlippiUser *user, bool isMex);
+	SlippiMatchmaking(uintptr_t rs_exi_device_ptr, SlippiUser *user);
 	~SlippiMatchmaking();
 
 	enum OnlinePlayMode
@@ -79,7 +89,7 @@ class SlippiMatchmaking
 		u32 items;
 	};
 
-	void FindMatch(MatchSearchSettings settings, bool isMex);
+	void FindMatch(MatchSearchSettings settings);
 	void MatchmakeThread();
 	ProcessState GetMatchmakeState();
 	bool IsSearching();
@@ -93,22 +103,35 @@ class SlippiMatchmaking
 	u8 RemotePlayerCount();
 	MatchmakeResult GetMatchmakeResult();
 	static bool IsFixedRulesMode(OnlinePlayMode mode);
-	static bool IsMexMode(SlippiUser* user, bool isCurrentGameMex, OnlinePlayMode mode);
 
   protected:
-	const std::string MM_HOST_DEV = "mm2.slippi.gg";
-	const std::string MM_HOST_PROD = "mm.slippi.gg";
-	const u16 MM_PORT = 43113;
+	// Public STUN servers used to learn the netplay socket's public address, tried in order
+	// until two have answered. Two different servers are needed to tell a cone NAT, which
+	// reuses one public port, from a symmetric NAT, which hands out a new one per
+	// destination. The non-Google entries are for networks that block Google.
+	const std::vector<std::pair<std::string, u16>> STUN_SERVERS = {
+	    {"stun.l.google.com", 19302},
+	    {"stun1.l.google.com", 19302},
+	    {"stun.cloudflare.com", 3478},
+	    {"global.stun.twilio.com", 3478},
+	};
 
-	std::string MM_HOST = "";
-	bool isMex = false;
+	// How often to send a packet from the netplay socket while queued so the NAT mapping the
+	// opponent will use does not expire.
+	const u32 STUN_KEEPALIVE_INTERVAL_MS = 15000;
 
+	// Bound to the netplay port for the duration of the queue. Only its socket is used.
 	ENetHost *m_client;
-	ENetPeer *m_server;
-	
+	ENetAddress m_stunAddr;
+	bool m_hasStunAddr = false;
+	u32 m_lastKeepaliveMs = 0;
+
+	// Identifies the Rust-side session this object started, so tearing this object down
+	// cannot cancel a newer search started by another instance.
+	u64 m_sessionId = 0;
+
 	std::default_random_engine generator;
 
-	bool isMmConnected = false;
 	bool isMmTerminated = false;
 
 	std::thread m_matchmakeThread;
@@ -143,17 +166,10 @@ class SlippiMatchmaking
 	    {ProcessState::OPPONENT_CONNECTING, true},
 	};
 
-	std::string getSlippiMMHost();
-	std::string getMexMMHost();
-	u16 getMMPortForSearchMode();
-	std::string getMMHostForSearchMode();
-
-	void disconnectFromServer();
 	void terminateMmConnection();
-	void sendMessage(json msg);
-	int receiveMessage(json &msg, int maxAttempts);
 
-	void sendHolePunchMsg(std::string remoteIp, u16 remotePort, u16 localPort);
+	bool stunBindingRequest(const ENetAddress &server, SlippiStunObservation &result);
+	void sendStunKeepalive();
 
 	void startMatchmaking();
 	void handleMatchmaking();

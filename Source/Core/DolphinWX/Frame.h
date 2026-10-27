@@ -123,7 +123,6 @@ public:
 	static void ConnectWiimote(int wm_idx, bool connect);
 	void UpdateTitle(const std::string& str);
 	void OpenGeneralConfiguration(wxWindowID tab_id = wxID_ANY);
-	// Lylat: the QR sign-in dialog (main thread only).
 	void ShowSlippiQrLogin();
 
 	const CGameListCtrl* GetGameListCtrl() const;

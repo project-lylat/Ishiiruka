@@ -73,7 +73,6 @@ CWII_IPC_HLE_Device_es::CWII_IPC_HLE_Device_es(u32 device_id, const std::string&
 {
 }
 
-static u8 key_sd[0x10] = {};
 static u8 key_ecc[0x1e] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 													 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 													 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01 };
@@ -88,7 +87,7 @@ u8* CWII_IPC_HLE_Device_es::keyTable[11] = {
 		key_empty,  // NAND HMAC
 		key_empty,  // Common Key
 		key_empty,  // PRNG seed
-		key_sd,     // SD Key
+		key_empty,  // SD Key (not shipped with Slippi Dolphin)
 		key_empty,  // Unknown
 		key_empty,  // Unknown
 		key_empty,  // Unknown
