@@ -42,7 +42,7 @@ jobs:
           git submodule update --init Externals/SlippiRustExtensions
           cd Externals/SlippiRustExtensions
           commit_id=$(git rev-parse HEAD)
-          git branch --contains $commit_id | grep main
+          git branch -r --contains $commit_id | grep -E "origin/(main|lylat-release-)"
 
   windows:
     needs: [skip_duplicates]
