@@ -171,6 +171,7 @@ struct SConfig : NonCopyable
 	bool m_slippiForceLanIp = false;
 	bool m_slippiCustomMMEnabled = true;
 	bool m_lylatUploadReplays = true;
+	bool m_lylatBookmarks = true;
 	std::string m_slippiLanIp = "";
 	bool m_meleeUserIniBootstrapped = false;
 	bool m_blockingPipes = false;

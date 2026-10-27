@@ -104,6 +104,11 @@ void SlippiNetplayConfigPane::InitializeGUI()
 	    _("Uploads the replay of each finished online game to your Lylat account, when your account "
 	      "has replay uploads turned on."));
 
+	m_lylat_bookmarks_checkbox = new wxCheckBox(this, wxID_ANY, _("Bookmarks (D-pad down marks clips)"));
+	m_lylat_bookmarks_checkbox->SetToolTip(
+	    _("Press D-pad down during a match to mark the last 10 seconds as a clip in the replay; press it twice "
+	      "for 30 seconds, three times or hold it for 60."));
+
 	// Input settings
 	m_reduce_timing_dispersion_checkbox = new wxCheckBox(this, wxID_ANY, _("Reduce Timing Dispersion"));
 	m_reduce_timing_dispersion_checkbox->SetToolTip(
@@ -184,6 +189,8 @@ void SlippiNetplayConfigPane::InitializeGUI()
 	wxStaticBoxSizer *const sbLylatSettings = new wxStaticBoxSizer(wxVERTICAL, this, _("Lylat Settings"));
 	sbLylatSettings->AddSpacer(space5);
 	sbLylatSettings->Add(m_lylat_upload_replays_checkbox, 0, wxLEFT | wxRIGHT, space5);
+	sbLylatSettings->AddSpacer(space5);
+	sbLylatSettings->Add(m_lylat_bookmarks_checkbox, 0, wxLEFT | wxRIGHT, space5);
 	sbLylatSettings->AddSpacer(space5);
 
 	wxStaticBoxSizer *const sbSlippiInputSettings = new wxStaticBoxSizer(wxVERTICAL, this, _("Slippi Input Settings"));
@@ -267,6 +274,7 @@ void SlippiNetplayConfigPane::LoadGUIValues()
 
 	m_slippi_enable_custom_mm_checkbox->SetValue(startup_params.m_slippiCustomMMEnabled);
 	m_lylat_upload_replays_checkbox->SetValue(startup_params.m_lylatUploadReplays);
+	m_lylat_bookmarks_checkbox->SetValue(startup_params.m_lylatBookmarks);
 
 	m_reduce_timing_dispersion_checkbox->SetValue(startup_params.bReduceTimingDispersion);
 
@@ -305,6 +313,7 @@ void SlippiNetplayConfigPane::BindEvents()
 	m_slippi_netplay_lan_ip_ctrl->Bind(wxEVT_TEXT, &SlippiNetplayConfigPane::OnNetplayLanIpChanged, this);
 	m_slippi_enable_custom_mm_checkbox->Bind(wxEVT_CHECKBOX, &SlippiNetplayConfigPane::OnEnableCustomMMServersToggle,this);
 	m_lylat_upload_replays_checkbox->Bind(wxEVT_CHECKBOX, &SlippiNetplayConfigPane::OnLylatUploadReplaysToggle, this);
+	m_lylat_bookmarks_checkbox->Bind(wxEVT_CHECKBOX, &SlippiNetplayConfigPane::OnLylatBookmarksToggle, this);
 
 	m_reduce_timing_dispersion_checkbox->Bind(wxEVT_CHECKBOX, &SlippiNetplayConfigPane::OnReduceTimingDispersionToggle,
 	                                          this);
@@ -402,6 +411,11 @@ void SlippiNetplayConfigPane::OnEnableCustomMMServersToggle(wxCommandEvent &even
 void SlippiNetplayConfigPane::OnLylatUploadReplaysToggle(wxCommandEvent &event)
 {
 	SConfig::GetInstance().m_lylatUploadReplays = m_lylat_upload_replays_checkbox->IsChecked();
+}
+
+void SlippiNetplayConfigPane::OnLylatBookmarksToggle(wxCommandEvent &event)
+{
+	SConfig::GetInstance().m_lylatBookmarks = m_lylat_bookmarks_checkbox->IsChecked();
 }
 
 void SlippiNetplayConfigPane::OnReduceTimingDispersionToggle(wxCommandEvent &event)
