@@ -509,8 +509,7 @@ CFrame::CFrame(wxFrame *parent, wxWindowID id, const wxString &title, wxRect geo
 	SetConsoleCtrlHandler(s_ctrl_handler, TRUE);
 #endif
 
-	// Lylat: the in-game login shows the QR sign-in dialog. Both hooks are called from
-	// emulation threads, so they hop to the main thread.
+	// Both hooks are called from emulation threads.
 	SlippiUser::s_showLoginDialog = [this] { CallAfter([this] { ShowSlippiQrLogin(); }); };
 	SlippiUser::s_onLoggedIn = [this] { CallAfter([this] { OnSlippiLoggedIn(); }); };
 	// Test aid: open the QR sign-in dialog at start (used for screenshots, no game needed).
@@ -770,6 +769,17 @@ void CFrame::OnHostMessage(wxCommandEvent &event)
 		std::pair<int, int> *win_size = (std::pair<int, int> *)(event.GetClientData());
 		OnRenderWindowSizeRequest(win_size->first, win_size->second);
 		delete win_size;
+	}
+	break;
+
+	case IDM_SHOW_ERROR_DIALOG:
+	{
+		auto *error = static_cast<std::pair<std::string, std::string> *>(event.GetClientData());
+		// Leave fullscreen like the hotkey does, or the dialog can open hidden behind the game
+		if (RendererIsFullscreen())
+			DoFullscreen(false);
+		wxMessageBox(StrToWxStr(error->second), StrToWxStr(error->first), wxOK | wxICON_ERROR, this);
+		delete error;
 	}
 	break;
 

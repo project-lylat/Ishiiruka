@@ -381,7 +381,6 @@ void SlippiNetplayConfigPane::OnNetplayLanIpChanged(wxCommandEvent &event)
 
 void SlippiNetplayConfigPane::OnEnableCustomMMServersToggle(wxCommandEvent &event)
 {
-	// Lylat: the Lylat servers come from the Rust extensions' environment (SLIPPI_ENV).
 	SConfig::GetInstance().m_slippiCustomMMEnabled = m_slippi_enable_custom_mm_checkbox->IsChecked();
 }
 
