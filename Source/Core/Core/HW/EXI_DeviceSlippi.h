@@ -124,6 +124,8 @@ class CEXISlippi : public IEXIDevice
 	{
 		// s32 press frame, u8 seconds, u8 final
 		LYLAT_EXT_BOOKMARK = 0x23,
+		// u8 enabled in the reply
+		LYLAT_EXT_BOOKMARK_STATUS = 0x24,
 	};
 
 	static const u32 SPLIT_MESSAGE_DATA_LEN = 512;

@@ -3636,10 +3636,17 @@ void CEXISlippi::DMAWrite(u32 _uAddr, u32 _uSize)
 	if (byte == CMD_LYLAT_EXT)
 	{
 		m_read_queue.clear();
+		bool bookmarksOn = SConfig::GetInstance().m_lylatBookmarks;
 		if (_uSize >= 2 && memPtr[1] == LYLAT_EXT_BOOKMARK)
 		{
-			HandleBookmark(&memPtr[2], _uSize - 2);
+			// Off, the mark is answered OK and dropped, so turning the setting back on works mid-match
+			if (bookmarksOn)
+				HandleBookmark(&memPtr[2], _uSize - 2);
 			m_read_queue.insert(m_read_queue.end(), {0, 0, 0, 0});
+		}
+		else if (_uSize >= 2 && memPtr[1] == LYLAT_EXT_BOOKMARK_STATUS)
+		{
+			m_read_queue.insert(m_read_queue.end(), {0, 0, 0, 1, (u8)(bookmarksOn ? 1 : 0)});
 		}
 		else
 		{
