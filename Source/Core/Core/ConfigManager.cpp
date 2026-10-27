@@ -292,6 +292,7 @@ void SConfig::SaveCoreSettings(IniFile &ini)
 	core->Set("SlippiForceLanIp", m_slippiForceLanIp);
 	core->Set("SlippiLanIp", m_slippiLanIp);
 	core->Set("SlippiEnableCustomMatchmakingServers", m_slippiCustomMMEnabled);
+	core->Set("LylatUploadReplays", m_lylatUploadReplays);
 	core->Set("SlippiReplayMonthFolders", m_slippiReplayMonthFolders);
 	core->Set("SlippiReplayDir", m_strSlippiReplayDir);
 	core->Set("SlippiReplayRegenerateDir", m_strSlippiRegenerateReplayDir);
@@ -640,6 +641,7 @@ void SConfig::LoadCoreSettings(IniFile &ini)
 	core->Get("SlippiForceLanIp", &m_slippiForceLanIp, false);
 	core->Get("SlippiLanIp", &m_slippiLanIp, "");
 	core->Get("SlippiEnableCustomMatchmakingServers", &m_slippiCustomMMEnabled, true);
+	core->Get("LylatUploadReplays", &m_lylatUploadReplays, true);
 	core->Get("SlippiReplayMonthFolders", &m_slippiReplayMonthFolders, false);
 	std::string default_replay_dir = File::GetHomeDirectory() + DIR_SEP + "Slippi";
 	core->Get("SlippiReplayDir", &m_strSlippiReplayDir, default_replay_dir);
