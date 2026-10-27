@@ -99,6 +99,11 @@ void SlippiNetplayConfigPane::InitializeGUI()
 	m_slippi_enable_custom_mm_checkbox->SetToolTip(
 	    _("Enable this to set a custom server for playing Unranked while using m-ex mods."));
 
+	m_lylat_upload_replays_checkbox = new wxCheckBox(this, wxID_ANY, _("Upload Replays to Lylat"));
+	m_lylat_upload_replays_checkbox->SetToolTip(
+	    _("Uploads the replay of each finished online game to your Lylat account, when your account "
+	      "has replay uploads turned on."));
+
 	// Input settings
 	m_reduce_timing_dispersion_checkbox = new wxCheckBox(this, wxID_ANY, _("Reduce Timing Dispersion"));
 	m_reduce_timing_dispersion_checkbox->SetToolTip(
@@ -176,6 +181,11 @@ void SlippiNetplayConfigPane::InitializeGUI()
 	sbSlippiOnlineSettings->Add(sSlippiOnlineSettings, 0, wxEXPAND | wxLEFT | wxRIGHT, space5);
 	sbSlippiOnlineSettings->AddSpacer(space5);
 
+	wxStaticBoxSizer *const sbLylatSettings = new wxStaticBoxSizer(wxVERTICAL, this, _("Lylat Settings"));
+	sbLylatSettings->AddSpacer(space5);
+	sbLylatSettings->Add(m_lylat_upload_replays_checkbox, 0, wxLEFT | wxRIGHT, space5);
+	sbLylatSettings->AddSpacer(space5);
+
 	wxStaticBoxSizer *const sbSlippiInputSettings = new wxStaticBoxSizer(wxVERTICAL, this, _("Slippi Input Settings"));
 	sbSlippiInputSettings->AddSpacer(space5);
 	sbSlippiInputSettings->Add(m_reduce_timing_dispersion_checkbox, 0, wxLEFT | wxRIGHT, space5);
@@ -187,6 +197,8 @@ void SlippiNetplayConfigPane::InitializeGUI()
 	main_sizer->Add(sbSlippiReplaySettings, 0, wxEXPAND | wxLEFT | wxRIGHT, space5);
 	main_sizer->AddSpacer(space5);
 	main_sizer->Add(sbSlippiOnlineSettings, 0, wxEXPAND | wxLEFT | wxRIGHT, space5);
+	main_sizer->AddSpacer(space5);
+	main_sizer->Add(sbLylatSettings, 0, wxEXPAND | wxLEFT | wxRIGHT, space5);
 	main_sizer->AddSpacer(space5);
 	main_sizer->Add(sbSlippiInputSettings, 0, wxEXPAND | wxLEFT | wxRIGHT, space5);
 	main_sizer->AddSpacer(space5);
@@ -254,6 +266,7 @@ void SlippiNetplayConfigPane::LoadGUIValues()
 	}
 
 	m_slippi_enable_custom_mm_checkbox->SetValue(startup_params.m_slippiCustomMMEnabled);
+	m_lylat_upload_replays_checkbox->SetValue(startup_params.m_lylatUploadReplays);
 
 	m_reduce_timing_dispersion_checkbox->SetValue(startup_params.bReduceTimingDispersion);
 
@@ -291,6 +304,7 @@ void SlippiNetplayConfigPane::BindEvents()
 	                                             this);
 	m_slippi_netplay_lan_ip_ctrl->Bind(wxEVT_TEXT, &SlippiNetplayConfigPane::OnNetplayLanIpChanged, this);
 	m_slippi_enable_custom_mm_checkbox->Bind(wxEVT_CHECKBOX, &SlippiNetplayConfigPane::OnEnableCustomMMServersToggle,this);
+	m_lylat_upload_replays_checkbox->Bind(wxEVT_CHECKBOX, &SlippiNetplayConfigPane::OnLylatUploadReplaysToggle, this);
 
 	m_reduce_timing_dispersion_checkbox->Bind(wxEVT_CHECKBOX, &SlippiNetplayConfigPane::OnReduceTimingDispersionToggle,
 	                                          this);
@@ -382,6 +396,11 @@ void SlippiNetplayConfigPane::OnNetplayLanIpChanged(wxCommandEvent &event)
 void SlippiNetplayConfigPane::OnEnableCustomMMServersToggle(wxCommandEvent &event)
 {
 	SConfig::GetInstance().m_slippiCustomMMEnabled = m_slippi_enable_custom_mm_checkbox->IsChecked();
+}
+
+void SlippiNetplayConfigPane::OnLylatUploadReplaysToggle(wxCommandEvent &event)
+{
+	SConfig::GetInstance().m_lylatUploadReplays = m_lylat_upload_replays_checkbox->IsChecked();
 }
 
 void SlippiNetplayConfigPane::OnReduceTimingDispersionToggle(wxCommandEvent &event)
