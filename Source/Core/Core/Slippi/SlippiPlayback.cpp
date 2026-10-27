@@ -504,7 +504,45 @@ void SlippiPlaybackStatus::generateDenylist()
 		}
 	}
 
+	for (u32 address : LYLAT_INJECTIONS)
+		denylist[address] = true;
+
 	NOTICE_LOG(SLIPPI, "Denylist populated with length: %d", denylist.size());
+}
+
+std::vector<u8> StripGeckoCodes(const std::vector<u8> &codes, const std::unordered_set<u32> &addresses)
+{
+	std::vector<u8> out;
+	size_t idx = 0;
+	while (idx + 8 <= codes.size())
+	{
+		u8 codeType = codes[idx] & 0xFE;
+		u32 address = codes[idx] << 24 | codes[idx + 1] << 16 | codes[idx + 2] << 8 | codes[idx + 3];
+		address = (address & 0x01FFFFFF) | 0x80000000;
+		u32 value = codes[idx + 4] << 24 | codes[idx + 5] << 16 | codes[idx + 6] << 8 | codes[idx + 7];
+
+		size_t codeOffset = 8;
+		switch (codeType)
+		{
+		case 0xC0:
+		case 0xC2:
+			codeOffset = 8 + ((size_t)value * 8);
+			break;
+		case 0x08:
+			codeOffset = 16;
+			break;
+		case 0x06:
+			codeOffset = 8 + (((size_t)value + 7) & ~(size_t)7);
+			break;
+		}
+		codeOffset = std::min(codeOffset, codes.size() - idx);
+
+		if (!addresses.count(address))
+			out.insert(out.end(), codes.begin() + idx, codes.begin() + idx + codeOffset);
+		idx += codeOffset;
+	}
+	out.insert(out.end(), codes.begin() + idx, codes.end());
+	return out;
 }
 
 void SlippiPlaybackStatus::generateLegacyCodelist() {
