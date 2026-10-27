@@ -604,6 +604,8 @@ void CEXISlippi::writeToFile(std::unique_ptr<WriteMessage> msg)
 		// Used to keep track of how many bytes have been written to the file
 		writtenByteCount = 0;
 
+		startReplayUpload(slippi_netplay ? recentMmResult.id : "");
+
 		geckoListSizeOffset = 0;
 		for (u32 i = 2; i + 2 < length; i += 3)
 		{
@@ -693,7 +695,57 @@ void CEXISlippi::writeToFile(std::unique_ptr<WriteMessage> msg)
 
 		// Close file
 		closeFile();
+		markReplayClosed();
 	}
+}
+
+void CEXISlippi::startReplayUpload(std::string matchId)
+{
+	std::lock_guard<std::mutex> lock(pendingReplayUploadLock);
+	pendingReplayUpload = {};
+#ifndef IS_PLAYBACK
+	if (!SConfig::GetInstance().m_lylatUploadReplays || matchId.empty() || currentReplayPath.empty())
+		return;
+
+	struct tm utc;
+#ifdef _WIN32
+	gmtime_s(&utc, &gameStartTime);
+#else
+	gmtime_r(&gameStartTime, &utc);
+#endif
+	char startedAt[sizeof "2026-10-26T12:00:00Z"];
+	strftime(startedAt, sizeof startedAt, "%Y-%m-%dT%H:%M:%SZ", &utc);
+
+	pendingReplayUpload.path = currentReplayPath;
+	pendingReplayUpload.startedAt = startedAt;
+	pendingReplayUpload.matchId = matchId;
+#endif
+}
+
+void CEXISlippi::markReplayClosed()
+{
+	std::lock_guard<std::mutex> lock(pendingReplayUploadLock);
+	pendingReplayUpload.closed = true;
+	uploadReplayIfReady();
+}
+
+void CEXISlippi::markReplayReported()
+{
+	std::lock_guard<std::mutex> lock(pendingReplayUploadLock);
+	pendingReplayUpload.reported = true;
+	uploadReplayIfReady();
+}
+
+// Called with pendingReplayUploadLock held
+void CEXISlippi::uploadReplayIfReady()
+{
+	if (pendingReplayUpload.path.empty() || !pendingReplayUpload.closed || !pendingReplayUpload.reported)
+		return;
+
+	INFO_LOG(SLIPPI_ONLINE, "Queueing replay upload to Lylat: %s", pendingReplayUpload.path.c_str());
+	slprs_exi_device_upload_replay(slprs_exi_device_ptr, pendingReplayUpload.path.c_str(),
+	                               pendingReplayUpload.startedAt.c_str(), pendingReplayUpload.matchId.c_str());
+	pendingReplayUpload = {};
 }
 
 void CEXISlippi::createNewFile()
@@ -755,6 +807,7 @@ void CEXISlippi::createNewFile()
 
 	std::string filepath = dirpath + DIR_SEP + generateFileName();
 	INFO_LOG(SLIPPI, "EXI_DeviceSlippi.cpp: Creating new replay file %s", filepath.c_str());
+	currentReplayPath = filepath;
 
 #ifdef _WIN32
 	m_file = File::IOFile(filepath, "wb", _SH_DENYWR);
@@ -3360,6 +3413,7 @@ void CEXISlippi::handleReportGame(const SlippiExiTypes::ReportGameQuery &query)
 
 #ifndef LOCAL_TESTING
 	slprs_exi_device_log_game_report(slprs_exi_device_ptr, gameReport);
+	markReplayReported();
 #endif
 }
 

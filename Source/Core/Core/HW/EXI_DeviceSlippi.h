@@ -5,6 +5,8 @@
 #pragma once
 
 #include <SlippiLib/SlippiGame.h>
+#include <mutex>
+#include <string>
 
 #include "Common/CommonTypes.h"
 #include "Common/FileUtil.h"
@@ -234,6 +236,23 @@ class CEXISlippi : public IEXIDevice
 	// cout stuff
 	bool outputCurrentFrame = false;
 	bool shouldOutput = false;
+
+	// Uploads the closed replay of an online game once its game report has been sent too
+	struct PendingReplayUpload
+	{
+		std::string path;
+		std::string startedAt;
+		std::string matchId;
+		bool closed = false;
+		bool reported = false;
+	};
+	std::mutex pendingReplayUploadLock;
+	PendingReplayUpload pendingReplayUpload;
+	std::string currentReplayPath;
+	void startReplayUpload(std::string matchId);
+	void markReplayClosed();
+	void markReplayReported();
+	void uploadReplayIfReady();
 
 	// vars for metadata generation
 	time_t gameStartTime;
