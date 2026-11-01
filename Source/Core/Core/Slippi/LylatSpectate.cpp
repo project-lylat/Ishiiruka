@@ -402,6 +402,9 @@ void LylatSpectateSource::Run()
 			case ENET_EVENT_TYPE_DISCONNECT:
 				if (ev.peer == mm)
 				{
+					// The server marks the source gone when this link drops, and the relay closes its stream.
+					WARN_LOG(SLIPPI_ONLINE, "[Spectate] The source's daemon connection closed (data %u), silent %llu ms",
+					         ev.data, SilenceMs(host, ev.peer));
 					mm = nullptr;
 					mmUp = false;
 				}
