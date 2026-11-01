@@ -20,7 +20,7 @@ UPDATETOOL_PATH="https://github.com/AppImage/AppImageUpdate/releases/download/co
 UPDATETOOL_FILE="appimageupdatetool-x86_64.AppImage"
 UPDATETOOL_URL="${UPDATETOOL_PATH}/${UPDATETOOL_FILE}"
 
-PLAYBACK_CODES_PATH="./Data/PlaybackGeckoCodes/"
+PLAYBACK_CODES_PATH="./Data/Sys/PlaybackGameSettings/"
 
 APPDIR_BIN="./AppDir/usr/bin"
 APPDIR_HOOKS="./AppDir/apprun-hooks"
