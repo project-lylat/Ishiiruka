@@ -171,13 +171,27 @@ class StreamCheck
 				if (!ok)
 					break;
 			}
+			m_ended |= p[0] == Slippi::EVENT_GAME_END;
 			pos += 1 + size->second;
 		}
 		m_pending.erase(m_pending.begin(), m_pending.begin() + pos);
 		return ok;
 	}
 
+	// A Game End event for a stream that stopped between events without one, so playback ends the
+	// game instead of waiting on its last frame; empty when the stream needs none or can't take one.
+	std::vector<u8> MissingGameEnd() const
+	{
+		auto size = m_sizes.find(Slippi::EVENT_GAME_END);
+		if (!m_haveSizes || m_ended || !m_pending.empty() || size == m_sizes.end())
+			return {};
+		std::vector<u8> event(1 + size->second, 0);
+		event[0] = Slippi::EVENT_GAME_END;
+		return event;
+	}
+
   private:
+	bool m_ended = false;
 	bool m_haveSizes = false;
 	std::unordered_map<u8, u16> m_sizes;
 	std::vector<u8> m_pending; // the start of an event still arriving
@@ -684,7 +698,23 @@ void LylatSpectateViewer::Run()
 		Show(Status::Live, "Watching " + sourceName);
 	};
 
+	// The relay link can close before a game's last bytes arrive. Without a Game End event the
+	// replay reader waits on the last frame forever, so the viewer ends the game itself.
+	auto finishFile = [&]() {
+		if (!file.IsOpen())
+			return;
+		std::vector<u8> end = check.MissingGameEnd();
+		if (!end.empty())
+		{
+			WARN_LOG(SLIPPI_ONLINE, "[Spectate] The stream stopped after %llu bytes without a Game End; ending the game",
+			         (unsigned long long)written);
+			file.WriteBytes(end.data(), end.size());
+		}
+		file.Close();
+	};
+
 	auto newFile = [&]() {
+		finishFile();
 		m_fileCount++;
 		filePath = SpectateDir() + StringFromFormat("game-%d.slp", m_fileCount);
 #ifdef _WIN32
@@ -790,7 +820,7 @@ void LylatSpectateViewer::Run()
 						break;
 					}
 					case END_GAME:
-						file.Close();
+						finishFile();
 						break;
 					case REFUSED:
 						Show(Status::Refused, std::string((const char *)data + 5, length - 5));
@@ -814,7 +844,7 @@ void LylatSpectateViewer::Run()
 				else if (ev.peer == relay)
 				{
 					relay = nullptr;
-					file.Close();
+					finishFile();
 				}
 				break;
 			default:
