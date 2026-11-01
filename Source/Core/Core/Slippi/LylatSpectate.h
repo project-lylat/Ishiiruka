@@ -20,6 +20,7 @@
 
 #include <atomic>
 #include <mutex>
+#include <set>
 #include <string>
 #include <thread>
 #include <vector>
@@ -80,6 +81,9 @@ class LylatSpectateViewer
 	static void Start(const std::string &connectCode, SlippiUser *user);
 	static void Stop();
 	static std::string CommPath();
+	// The Gecko codes this build ships for the running game, one entry per code as a replay lists
+	// them. A spectated replay's code list comes from another player's Dolphin, so only these run.
+	static std::set<std::vector<u8>> TrustedCodes();
 
 	~LylatSpectateViewer();
 

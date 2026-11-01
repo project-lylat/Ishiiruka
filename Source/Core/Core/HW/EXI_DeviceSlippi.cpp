@@ -4,6 +4,7 @@
 
 #include "Core/Debugger/Debugger_SymbolMap.h"
 #include <algorithm>
+#include <set>
 
 #include "Core/Slippi/LylatSpectate.h"
 #include "Core/Slippi/SlippiPlayback.h"
@@ -1060,6 +1061,14 @@ void CEXISlippi::prepareGeckoList()
 	std::vector<u8> source = settings->geckoCodes;
 	INFO_LOG(SLIPPI, "Booting codes with source size: %d", source.size());
 
+	// A spectated game's code list comes from another player's Dolphin: run only the codes this
+	// build ships, so nobody can send code to the people watching them.
+	const bool spectating = !SConfig::GetInstance().m_lylatSpectateCode.empty();
+	std::set<std::vector<u8>> trusted;
+	if (spectating)
+		trusted = LylatSpectateViewer::TrustedCodes();
+	int untrusted = 0;
+
 	size_t idx = 0;
 	while (idx < source.size())
 	{
@@ -1108,12 +1117,25 @@ void CEXISlippi::prepareGeckoList()
 		if (denylist[address])
 			continue;
 
+		if (spectating && !trusted.count(std::vector<u8>(source.begin() + (idx - codeOffset), source.begin() + idx)))
+		{
+			WARN_LOG(SLIPPI, "Skipping a code at %x that this build does not ship", address);
+			untrusted++;
+			continue;
+		}
+
 		INFO_LOG(SLIPPI, "Codetype [%x] Inserting section: %zu - %zu (%x, %llu)", codeType, (size_t)(idx - codeOffset), idx,
 		         address, (unsigned long long)codeOffset);
 
 		// If not denylisted, add code to return vector
 		geckoList.insert(geckoList.end(), source.begin() + (idx - codeOffset), source.begin() + idx);
 	}
+
+	if (untrusted > 0)
+		OSD::AddMessage(StringFromFormat("Skipped %d codes this Dolphin does not ship. The game may not play back "
+		                                 "correctly; the player may use another version.",
+		                                 untrusted),
+		                10000);
 
 	// Add the termination sequence
 	geckoList.insert(geckoList.end(), {0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00});
