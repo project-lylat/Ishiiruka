@@ -122,11 +122,12 @@ bool ParseJson(const ENetPacket *packet, json &out)
 }
 
 // How long the peer was silent (including ENet's own pings) before this event. A gap of 5 s or
-// more before a disconnect means an ENet timeout rather than a close from the other side.
-unsigned long long SilenceMs(const ENetHost *host, const ENetPeer *peer)
+// more before a disconnect means an ENet timeout rather than a close from the other side. ENet resets
+// the peer before it reports the disconnect, so callers pass the receive time saved before servicing.
+unsigned long long SilenceMs(const ENetHost *host, enet_uint32 lastReceiveTime)
 {
 	// ENet times are 32-bit milliseconds; unsigned subtraction handles the wrap.
-	return (enet_uint32)(host->serviceTime - peer->lastReceiveTime);
+	return (enet_uint32)(host->serviceTime - lastReceiveTime);
 }
 
 std::string SpectateDir()
@@ -347,6 +348,8 @@ void LylatSpectateSource::Run()
 			}
 		}
 
+		enet_uint32 mmHeard = mm ? mm->lastReceiveTime : 0;
+		enet_uint32 relayHeard = relay ? relay->lastReceiveTime : 0;
 		ENetEvent ev;
 		while (enet_host_service(host, &ev, 5) > 0)
 		{
@@ -404,7 +407,7 @@ void LylatSpectateSource::Run()
 				{
 					// The server marks the source gone when this link drops, and the relay closes its stream.
 					WARN_LOG(SLIPPI_ONLINE, "[Spectate] The source's daemon connection closed (data %u), silent %llu ms",
-					         ev.data, SilenceMs(host, ev.peer));
+					         ev.data, SilenceMs(host, mmHeard));
 					mm = nullptr;
 					mmUp = false;
 				}
@@ -412,7 +415,7 @@ void LylatSpectateSource::Run()
 				{
 					WARN_LOG(SLIPPI_ONLINE,
 					         "[Spectate] The relay link closed after %zu of %zu bytes of game %d, silent %llu ms, rtt %u ms",
-					         sent, size, gameIndex, SilenceMs(host, ev.peer), ev.peer->roundTripTime);
+					         sent, size, gameIndex, SilenceMs(host, relayHeard), ev.peer->roundTripTime);
 					relay = nullptr;
 					relayUp = false;
 					relayRetryAt = Common::Timer::GetTimeMs() + RELAY_RETRY_MS;
@@ -564,6 +567,7 @@ void LylatSpectateViewer::Run()
 
 	while (m_running && !done)
 	{
+		enet_uint32 mmHeard = mm ? mm->lastReceiveTime : 0;
 		ENetEvent ev;
 		while (enet_host_service(host, &ev, 10) > 0)
 		{
@@ -660,7 +664,7 @@ void LylatSpectateViewer::Run()
 				{
 					// Ask again on a new connection; the server dropped the old request with it.
 					WARN_LOG(SLIPPI_ONLINE, "[Spectate] The daemon connection closed (data %u), silent %llu ms",
-					         ev.data, SilenceMs(host, ev.peer));
+					         ev.data, SilenceMs(host, mmHeard));
 					Show(Status::Connecting, "Reconnecting to Lylat...");
 					mm = nullptr;
 					mmRetryAt = Common::Timer::GetTimeMs() + MM_RETRY_MS;
