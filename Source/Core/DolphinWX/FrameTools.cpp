@@ -636,7 +636,8 @@ void CFrame::OnLylatSpectate(wxCommandEvent &WXUNUSED(event))
 	// The session lasts until the game stops (OnStopped clears it).
 	config.m_lylatSpectateCode = code;
 	BootGame(melee);
-	if (Core::GetState() == Core::CORE_UNINITIALIZED)
+	// The core starts on its own thread; a failed boot is the only case that leaves this unset.
+	if (!m_bGameLoading)
 		config.m_lylatSpectateCode.clear();
 }
 

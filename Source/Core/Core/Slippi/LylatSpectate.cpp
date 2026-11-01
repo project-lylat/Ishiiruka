@@ -17,7 +17,7 @@
 #include "Common/StringUtil.h"
 #include "Common/Timer.h"
 #include "Core/ConfigManager.h"
-#include "Core/Core.h"
+#include "VideoCommon/OnScreenDisplay.h"
 
 #include "SlippiRustExtensions.h"
 
@@ -428,15 +428,21 @@ std::string LylatSpectateViewer::CommPath()
 	return SpectateDir() + "comm.json";
 }
 
-LylatSpectateViewer::LylatSpectateViewer(const std::string &connectCode, SlippiUser *user)
-    : m_code(connectCode), m_user(user)
+// The watched games are temporary: they belong to the player being watched.
+static void DeleteSpectateFiles()
 {
-	File::CreateFullPath(SpectateDir());
 	for (const auto &entry : File::ScanDirectoryTree(SpectateDir(), false).children)
 	{
 		if (!entry.isDirectory)
 			File::Delete(entry.physicalName);
 	}
+}
+
+LylatSpectateViewer::LylatSpectateViewer(const std::string &connectCode, SlippiUser *user)
+    : m_code(connectCode), m_user(user)
+{
+	File::CreateFullPath(SpectateDir());
+	DeleteSpectateFiles();
 	WriteComm("");
 	m_thread = std::thread(&LylatSpectateViewer::Run, this);
 }
@@ -446,6 +452,7 @@ LylatSpectateViewer::~LylatSpectateViewer()
 	m_running = false;
 	if (m_thread.joinable())
 		m_thread.join();
+	DeleteSpectateFiles();
 }
 
 void LylatSpectateViewer::WriteComm(const std::string &replayPath)
@@ -461,8 +468,9 @@ void LylatSpectateViewer::WriteComm(const std::string &replayPath)
 void LylatSpectateViewer::Show(Status status, const std::string &text)
 {
 	NOTICE_LOG(SLIPPI_ONLINE, "[Spectate] %s", text.c_str());
+	// One status line at a time: each new status replaces the last one.
 	u32 ms = status == Status::Live ? 4000 : status == Status::Refused ? 15000 : 600000;
-	Core::DisplayMessage(text, ms);
+	OSD::AddTypedMessage(OSD::MessageType::SpectateStatus, text, ms);
 }
 
 void LylatSpectateViewer::Run()
@@ -567,9 +575,9 @@ void LylatSpectateViewer::Run()
 					}
 					else if (type == "spectate-end")
 					{
+						// The relay closes the link after end_game. This push can arrive before the relay's
+						// last bytes, so the link stays open until then.
 						std::string reason = msg.value("reason", "");
-						if (relay)
-							enet_peer_disconnect_later(relay, 0);
 						if (reason == "game_end")
 						{
 							Show(Status::Waiting, "Waiting for " + sourceName + "'s next game...");
