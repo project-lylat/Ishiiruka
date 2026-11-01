@@ -39,6 +39,7 @@ void MainToolBar::BindMainButtonEvents()
 {
 	Bind(wxEVT_UPDATE_UI, &WxEventUtils::OnEnableIfCoreNotRunning, wxID_OPEN);
 	Bind(wxEVT_UPDATE_UI, &WxEventUtils::OnEnableIfCoreNotRunning, wxID_REFRESH);
+	Bind(wxEVT_UPDATE_UI, &WxEventUtils::OnEnableIfCoreNotRunning, IDM_LYLAT_SPECTATE);
 	Bind(wxEVT_UPDATE_UI, &WxEventUtils::OnEnableIfCoreRunningOrPaused, IDM_STOP);
 	Bind(wxEVT_UPDATE_UI, &WxEventUtils::OnEnableIfCoreRunningOrPaused, IDM_TOGGLE_FULLSCREEN);
 	Bind(wxEVT_UPDATE_UI, &WxEventUtils::OnEnableIfCoreRunningOrPaused, IDM_SCREENSHOT);
@@ -87,6 +88,7 @@ void MainToolBar::InitializeThemeBitmaps()
 	m_icon_bitmaps.insert({ { TOOLBAR_FILEOPEN, CreateBitmap("open") },
 	{ TOOLBAR_REFRESH, CreateBitmap("refresh") },
 	{ TOOLBAR_PLAY, CreateBitmap("play") },
+	{ TOOLBAR_SPECTATE, CreateBitmap("spectate") },
 	{ TOOLBAR_STOP, CreateBitmap("stop") },
 	{ TOOLBAR_PAUSE, CreateBitmap("pause") },
 	{ TOOLBAR_SCREENSHOT, CreateBitmap("screenshot") },
@@ -122,9 +124,10 @@ wxBitmap MainToolBar::CreateDebuggerBitmap(const std::string& name) const
 
 void MainToolBar::ApplyThemeBitmaps()
 {
-	constexpr std::array<std::pair<int, ToolBarBitmapID>, 8> bitmap_entries{
+	constexpr std::array<std::pair<int, ToolBarBitmapID>, 9> bitmap_entries{
 		{ { wxID_OPEN, TOOLBAR_FILEOPEN },
 		{ wxID_REFRESH, TOOLBAR_REFRESH },
+		{ IDM_LYLAT_SPECTATE, TOOLBAR_SPECTATE },
 		{ IDM_STOP, TOOLBAR_STOP },
 		{ IDM_TOGGLE_FULLSCREEN, TOOLBAR_FULLSCREEN },
 		{ IDM_SCREENSHOT, TOOLBAR_SCREENSHOT },
@@ -178,6 +181,8 @@ void MainToolBar::AddMainToolBarButtons()
 	AddToolBarButton(wxID_REFRESH, TOOLBAR_REFRESH, _("Refresh"), _("Refresh game list"));
 	AddSeparator();
 	AddToolBarButton(IDM_PLAY, TOOLBAR_PLAY, _("Play"), _("Play"));
+	AddToolBarButton(IDM_LYLAT_SPECTATE, TOOLBAR_SPECTATE, _("Spectate"),
+		_("Watch a player's online games by connect code"));
 	AddToolBarButton(IDM_STOP, TOOLBAR_STOP, _("Stop"), _("Stop"));
 	AddToolBarButton(IDM_TOGGLE_FULLSCREEN, TOOLBAR_FULLSCREEN, _("FullScr"), _("Toggle fullscreen"));
 	AddToolBarButton(IDM_SCREENSHOT, TOOLBAR_SCREENSHOT, _("ScrShot"), _("Take screenshot"));

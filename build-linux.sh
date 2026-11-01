@@ -3,7 +3,7 @@
 
 CMAKE_FLAGS='-DLINUX_LOCAL_DEV=true'
 
-PLAYBACK_CODES_PATH="./Data/PlaybackGeckoCodes/"
+PLAYBACK_CODES_PATH="./Data/Sys/PlaybackGameSettings/"
 
 DATA_SYS_PATH="./Data/Sys/"
 BINARY_PATH="./build/Binaries/"

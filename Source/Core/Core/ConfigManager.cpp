@@ -294,6 +294,8 @@ void SConfig::SaveCoreSettings(IniFile &ini)
 	core->Set("SlippiEnableCustomMatchmakingServers", m_slippiCustomMMEnabled);
 	core->Set("LylatUploadReplays", m_lylatUploadReplays);
 	core->Set("LylatBookmarks", m_lylatBookmarks);
+	core->Set("LylatAllowSpectators", m_lylatAllowSpectators);
+	core->Set("LylatLastSpectateCode", m_lylatLastSpectateCode);
 	core->Set("SlippiReplayMonthFolders", m_slippiReplayMonthFolders);
 	core->Set("SlippiReplayDir", m_strSlippiReplayDir);
 	core->Set("SlippiReplayRegenerateDir", m_strSlippiRegenerateReplayDir);
@@ -644,6 +646,8 @@ void SConfig::LoadCoreSettings(IniFile &ini)
 	core->Get("SlippiEnableCustomMatchmakingServers", &m_slippiCustomMMEnabled, true);
 	core->Get("LylatUploadReplays", &m_lylatUploadReplays, true);
 	core->Get("LylatBookmarks", &m_lylatBookmarks, true);
+	core->Get("LylatAllowSpectators", &m_lylatAllowSpectators, false);
+	core->Get("LylatLastSpectateCode", &m_lylatLastSpectateCode, "");
 	core->Get("SlippiReplayMonthFolders", &m_slippiReplayMonthFolders, false);
 	std::string default_replay_dir = File::GetHomeDirectory() + DIR_SEP + "Slippi";
 	core->Get("SlippiReplayDir", &m_strSlippiReplayDir, default_replay_dir);
@@ -1304,19 +1308,31 @@ IniFile SConfig::LoadGameIni() const
 	return LoadGameIni(GetGameID_Wrapper(), m_revision);
 }
 
+// A spectate session boots Melee with the playback code set instead of the online one.
+static std::string SysGameIniPath(const std::string &filename)
+{
+	if (!SConfig::GetInstance().m_lylatSpectateCode.empty())
+	{
+		std::string playback = File::GetSysDirectory() + "PlaybackGameSettings" DIR_SEP + filename;
+		if (File::Exists(playback))
+			return playback;
+	}
+	return File::GetSysDirectory() + GAMESETTINGS_DIR DIR_SEP + filename;
+}
+
 bool SConfig::GameHasDefaultGameIni(const std::string &id, u16 revision)
 {
 	const std::vector<std::string> filenames = GetGameIniFilenames(id, revision);
 	return std::any_of(filenames.begin(), filenames.end(),
 	                   [](const std::string &filename)
-	                   { return File::Exists(File::GetSysDirectory() + GAMESETTINGS_DIR DIR_SEP + filename); });
+	                   { return File::Exists(SysGameIniPath(filename)); });
 }
 
 IniFile SConfig::LoadDefaultGameIni(const std::string &id, u16 revision)
 {
 	IniFile game_ini;
 	for (const std::string &filename : GetGameIniFilenames(id, revision))
-		game_ini.Load(File::GetSysDirectory() + GAMESETTINGS_DIR DIR_SEP + filename, true);
+		game_ini.Load(SysGameIniPath(filename), true);
 	return game_ini;
 }
 
@@ -1332,7 +1348,7 @@ IniFile SConfig::LoadGameIni(const std::string &id, u16 revision)
 {
 	IniFile game_ini;
 	for (const std::string &filename : GetGameIniFilenames(id, revision))
-		game_ini.Load(File::GetSysDirectory() + GAMESETTINGS_DIR DIR_SEP + filename, true);
+		game_ini.Load(SysGameIniPath(filename), true);
 	for (const std::string &filename : GetGameIniFilenames(id, revision))
 		game_ini.Load(File::GetUserPath(D_GAMESETTINGS_IDX) + filename, true);
 	return game_ini;

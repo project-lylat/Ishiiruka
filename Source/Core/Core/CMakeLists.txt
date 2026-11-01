@@ -192,6 +192,7 @@ set(SRCS	ActionReplay.cpp
 			PowerPC/JitILCommon/JitILBase_Integer.cpp
 			Slippi/SlippiGameFileLoader.cpp
 			Slippi/LylatMatchmaking.cpp
+			Slippi/LylatSpectate.cpp
 			Slippi/SlippiMatchmaking.cpp
 			Slippi/SlippiNetplay.cpp
 			Slippi/SlippiPad.cpp

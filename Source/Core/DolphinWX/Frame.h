@@ -266,6 +266,7 @@ private:
 	void OnBootDrive(wxCommandEvent& event);
 
 	void OnPlay(wxCommandEvent& event);  // Emulation
+	void OnLylatSpectate(wxCommandEvent& event);
 	void OnStop(wxCommandEvent& event);
 	void OnReset(wxCommandEvent& event);
 	void OnRecord(wxCommandEvent& event);

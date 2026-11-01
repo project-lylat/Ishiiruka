@@ -42,6 +42,7 @@ class SlippiNetplayConfigPane final : public wxPanel
 	void OnEnableCustomMMServersToggle(wxCommandEvent &event);
 	void OnLylatUploadReplaysToggle(wxCommandEvent &event);
 	void OnLylatBookmarksToggle(wxCommandEvent &event);
+	void OnLylatAllowSpectatorsToggle(wxCommandEvent &event);
 
 	void OnQuickChatChanged(wxCommandEvent &event);
 	void OnReduceTimingDispersionToggle(wxCommandEvent &event);
@@ -67,6 +68,7 @@ class SlippiNetplayConfigPane final : public wxPanel
 	wxCheckBox *m_slippi_enable_custom_mm_checkbox;
 	wxCheckBox *m_lylat_upload_replays_checkbox;
 	wxCheckBox *m_lylat_bookmarks_checkbox;
+	wxCheckBox *m_lylat_allow_spectators_checkbox;
 
 	wxCheckBox *m_reduce_timing_dispersion_checkbox;
 
