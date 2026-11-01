@@ -4,7 +4,7 @@
 
 #include "Core/Debugger/Debugger_SymbolMap.h"
 #include <algorithm>
-#include <set>
+#include <memory>
 
 #include "Core/Slippi/LylatSpectate.h"
 #include "Core/Slippi/SlippiPlayback.h"
@@ -1061,12 +1061,11 @@ void CEXISlippi::prepareGeckoList()
 	std::vector<u8> source = settings->geckoCodes;
 	INFO_LOG(SLIPPI, "Booting codes with source size: %d", source.size());
 
-	// A spectated game's code list comes from another player's Dolphin: run only the codes this
-	// build ships, so nobody can send code to the people watching them.
-	const bool spectating = !SConfig::GetInstance().m_lylatSpectateCode.empty();
-	std::set<std::vector<u8>> trusted;
-	if (spectating)
-		trusted = LylatSpectateViewer::TrustedCodes();
+	// A spectated game's code list comes from another player's Dolphin: run this build's copy of
+	// each code instead, so nobody can send code to the people watching them.
+	std::unique_ptr<LylatShippedCodes> shipped;
+	if (!SConfig::GetInstance().m_lylatSpectateCode.empty())
+		shipped = std::make_unique<LylatShippedCodes>();
 	int untrusted = 0;
 
 	size_t idx = 0;
@@ -1117,10 +1116,17 @@ void CEXISlippi::prepareGeckoList()
 		if (denylist[address])
 			continue;
 
-		if (spectating && !trusted.count(std::vector<u8>(source.begin() + (idx - codeOffset), source.begin() + idx)))
+		if (shipped)
 		{
-			WARN_LOG(SLIPPI, "Skipping a code at %x that this build does not ship", address);
-			untrusted++;
+			const std::vector<u8> *code = shipped->Find(source.data() + (idx - codeOffset), (size_t)codeOffset);
+			if (!code)
+			{
+				WARN_LOG(SLIPPI, "Skipping a code at %x that this build does not ship", address);
+				untrusted++;
+				continue;
+			}
+			INFO_LOG(SLIPPI, "Running this build's copy of the code at %x (%zu bytes)", address, code->size());
+			geckoList.insert(geckoList.end(), code->begin(), code->end());
 			continue;
 		}
 

@@ -20,7 +20,7 @@
 
 #include <atomic>
 #include <mutex>
-#include <set>
+#include <map>
 #include <string>
 #include <thread>
 #include <vector>
@@ -64,6 +64,23 @@ class LylatSpectateSource
 	std::vector<std::string> m_presence; // states waiting to be sent
 };
 
+// The Gecko codes this build ships for the running game. A spectated replay's code list comes from
+// another player's Dolphin, so the viewer runs this build's copy of each code instead of the sent one.
+class LylatShippedCodes
+{
+  public:
+	LylatShippedCodes();
+
+	// This build's copy of the replay's code, or nullptr when the build ships no code with the same
+	// first line and length. A replay holds codes as they sat in memory: the branch back the code
+	// handler writes and the data some codes keep inside themselves differ from the ini, so the copy
+	// with the fewest different bytes wins.
+	const std::vector<u8> *Find(const u8 *code, size_t length) const;
+
+  private:
+	std::multimap<std::pair<u32, size_t>, std::vector<u8>> m_codes; // by first word and length
+};
+
 class LylatSpectateViewer
 {
   public:
@@ -81,9 +98,6 @@ class LylatSpectateViewer
 	static void Start(const std::string &connectCode, SlippiUser *user);
 	static void Stop();
 	static std::string CommPath();
-	// The Gecko codes this build ships for the running game, one entry per code as a replay lists
-	// them. A spectated replay's code list comes from another player's Dolphin, so only these run.
-	static std::set<std::vector<u8>> TrustedCodes();
 
 	~LylatSpectateViewer();
 

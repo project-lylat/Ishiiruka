@@ -534,7 +534,7 @@ std::string LylatSpectateViewer::CommPath()
 	return SpectateDir() + "comm.json";
 }
 
-std::set<std::vector<u8>> LylatSpectateViewer::TrustedCodes()
+LylatShippedCodes::LylatShippedCodes()
 {
 	// The online codes in Sys/GameSettings, not the playback ones this session boots with.
 	const SConfig &config = SConfig::GetInstance();
@@ -544,7 +544,6 @@ std::set<std::vector<u8>> LylatSpectateViewer::TrustedCodes()
 	std::vector<Gecko::GeckoCode> codes;
 	Gecko::ParseCodes(ini, codes, false);
 
-	std::set<std::vector<u8>> trusted;
 	for (const Gecko::GeckoCode &code : codes)
 	{
 		std::vector<u8> bytes;
@@ -560,11 +559,30 @@ std::set<std::vector<u8>> LylatSpectateViewer::TrustedCodes()
 			u64 length = GeckoCodeLength(bytes.data() + at);
 			if (length > bytes.size() - at)
 				break;
-			trusted.emplace(bytes.begin() + at, bytes.begin() + at + (size_t)length);
+			m_codes.emplace(std::make_pair(ReadWord(bytes.data() + at), (size_t)length),
+			                std::vector<u8>(bytes.begin() + at, bytes.begin() + at + (size_t)length));
 			at += (size_t)length;
 		}
 	}
-	return trusted;
+}
+
+const std::vector<u8> *LylatShippedCodes::Find(const u8 *code, size_t length) const
+{
+	const std::vector<u8> *best = nullptr;
+	size_t bestDiff = 0;
+	auto range = m_codes.equal_range(std::make_pair(ReadWord(code), length));
+	for (auto it = range.first; it != range.second; ++it)
+	{
+		size_t diff = 0;
+		for (size_t i = 0; i < length; i++)
+			diff += it->second[i] != code[i];
+		if (!best || diff < bestDiff)
+		{
+			best = &it->second;
+			bestDiff = diff;
+		}
+	}
+	return best;
 }
 
 // The watched games are temporary: they belong to the player being watched.
