@@ -4,6 +4,7 @@
 
 #include "Core/Debugger/Debugger_SymbolMap.h"
 #include <algorithm>
+#include <set>
 
 #include "Core/Slippi/LylatSpectate.h"
 #include "Core/Slippi/SlippiPlayback.h"
@@ -1060,21 +1061,36 @@ void CEXISlippi::prepareGeckoList()
 	std::vector<u8> source = settings->geckoCodes;
 	INFO_LOG(SLIPPI, "Booting codes with source size: %d", source.size());
 
-	int idx = 0;
+	// A spectated game's code list comes from another player's Dolphin: run only the codes this
+	// build ships, so nobody can send code to the people watching them.
+	const bool spectating = !SConfig::GetInstance().m_lylatSpectateCode.empty();
+	std::set<std::vector<u8>> trusted;
+	if (spectating)
+		trusted = LylatSpectateViewer::TrustedCodes();
+	int untrusted = 0;
+
+	size_t idx = 0;
 	while (idx < source.size())
 	{
+		// Every code starts with an 8 byte line, and its length must stay inside the list
+		if (source.size() - idx < 8)
+		{
+			ERROR_LOG(SLIPPI, "The replay's code list ends inside a code at %zu of %zu bytes", idx, source.size());
+			break;
+		}
+
 		u8 codeType = source[idx] & 0xFE;
 		u32 address = source[idx] << 24 | source[idx + 1] << 16 | source[idx + 2] << 8 | source[idx + 3];
 		address = (address & 0x01FFFFFF) | 0x80000000;
 
-		u32 codeOffset = 8; // Default code offset. Most codes are this length
+		u64 codeOffset = 8; // Default code offset. Most codes are this length
 		switch (codeType)
 		{
 		case 0xC0:
 		case 0xC2:
 		{
 			u32 lineCount = source[idx + 4] << 24 | source[idx + 5] << 16 | source[idx + 6] << 8 | source[idx + 7];
-			codeOffset = 8 + (lineCount * 8);
+			codeOffset = 8 + ((u64)lineCount * 8);
 			break;
 		}
 		case 0x08:
@@ -1083,9 +1099,16 @@ void CEXISlippi::prepareGeckoList()
 		case 0x06:
 		{
 			u32 byteLen = source[idx + 4] << 24 | source[idx + 5] << 16 | source[idx + 6] << 8 | source[idx + 7];
-			codeOffset = 8 + ((byteLen + 7) & 0xFFFFFFF8); // Round up to next 8 bytes and add the first 8 bytes
+			codeOffset = 8 + (((u64)byteLen + 7) & ~(u64)7); // Round up to next 8 bytes and add the first 8 bytes
 			break;
 		}
+		}
+
+		if (codeOffset > source.size() - idx)
+		{
+			ERROR_LOG(SLIPPI, "The replay's code at %zu needs %llu bytes but only %zu remain", idx, (unsigned long long)codeOffset,
+			          source.size() - idx);
+			break;
 		}
 
 		idx += codeOffset;
@@ -1094,12 +1117,25 @@ void CEXISlippi::prepareGeckoList()
 		if (denylist[address])
 			continue;
 
-		INFO_LOG(SLIPPI, "Codetype [%x] Inserting section: %d - %d (%x, %d)", codeType, idx - codeOffset, idx, address,
-		         codeOffset);
+		if (spectating && !trusted.count(std::vector<u8>(source.begin() + (idx - codeOffset), source.begin() + idx)))
+		{
+			WARN_LOG(SLIPPI, "Skipping a code at %x that this build does not ship", address);
+			untrusted++;
+			continue;
+		}
+
+		INFO_LOG(SLIPPI, "Codetype [%x] Inserting section: %zu - %zu (%x, %llu)", codeType, (size_t)(idx - codeOffset), idx,
+		         address, (unsigned long long)codeOffset);
 
 		// If not denylisted, add code to return vector
 		geckoList.insert(geckoList.end(), source.begin() + (idx - codeOffset), source.begin() + idx);
 	}
+
+	if (untrusted > 0)
+		OSD::AddMessage(StringFromFormat("Skipped %d codes this Dolphin does not ship. The game may not play back "
+		                                 "correctly; the player may use another version.",
+		                                 untrusted),
+		                10000);
 
 	// Add the termination sequence
 	geckoList.insert(geckoList.end(), {0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00});

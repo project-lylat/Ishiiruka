@@ -20,7 +20,8 @@ namespace Slippi {
   }
 
   uint16_t readHalf(uint8_t* a, int& idx, uint32_t maxSize, uint16_t defaultValue) {
-    if (idx >= (int)maxSize) {
+    // The whole value must fit in the payload, not only its first byte
+    if (idx + 2 > (int)maxSize) {
       idx += 2;
       return defaultValue;
     }
@@ -31,7 +32,7 @@ namespace Slippi {
   }
 
   uint32_t readWord(uint8_t* a, int& idx, uint32_t maxSize, uint32_t defaultValue) {
-    if (idx >= (int)maxSize) {
+    if (idx + 4 > (int)maxSize) {
       idx += 4;
       return defaultValue;
     }
@@ -258,11 +259,11 @@ namespace Slippi {
     //Check frame count
     int32_t frameCount = readWord(data, idx, maxSize, 0);
 
-    FrameData* frame;
-    if (game->framesByIndex.count(frameCount)) {
-      // If this frame already exists, get the current frame
-      frame = game->frames.back().get();
+    // A post frame update belongs to a frame that a pre frame update already started
+    if (!game->framesByIndex.count(frameCount)) {
+      return;
     }
+    FrameData* frame = game->frames.back().get();
 
     // As soon as a post frame update happens, we know we have received all the inputs
     // This is used to determine if a frame is ready to be used for a replay (for mirroring)
@@ -354,15 +355,20 @@ namespace Slippi {
       return {};
     }
 
-    int payloadLength = buffer[1];
+    // The length is unsigned and counts itself, followed by 3 bytes per command
+    int payloadLength = (uint8_t)buffer[1];
+    if (payloadLength < 1) {
+      return {};
+    }
     std::unordered_map<uint8_t, uint32_t> messageSizes = {
       { EVENT_PAYLOAD_SIZES, payloadLength }
     };
 
-
     std::vector<char> messageSizesBuffer(payloadLength - 1);
-    f->read(&messageSizesBuffer[0], payloadLength - 1);
-    for (int i = 0; i < payloadLength - 1; i += 3) {
+    if (payloadLength > 1) {
+      f->read(&messageSizesBuffer[0], payloadLength - 1);
+    }
+    for (int i = 0; i + 2 < payloadLength - 1; i += 3) {
       uint8_t command = messageSizesBuffer[i];
 
       // Extract the bytes in u8s. Without this the chars don't or together well
@@ -408,8 +414,8 @@ namespace Slippi {
       file->seekg(startPos);
       file->read(buffer, 2);
       file->seekg(startPos);
-      auto messageSizesSize = (int)buffer[1];
-      if (rawDataLen < messageSizesSize) {
+      auto messageSizesSize = (int)(uint8_t)buffer[1];
+      if (rawDataLen < messageSizesSize + 1) {
         // If we haven't received the full payload sizes message, return
         // Reset to begining so that the startPos condition will be hit again
         file->seekg(0);
@@ -464,8 +470,18 @@ namespace Slippi {
           shouldResetSplitMessageBuf = false;
         }
 
+        // A split message holds a data block, its 2 byte length, the inner command and a done flag.
+        // Stop on a message too short for that or a length past the block, as the file is corrupt.
+        if (payloadSize < SPLIT_MESSAGE_INTERNAL_DATA_LEN + 4) {
+          isProcessingComplete = true;
+          return;
+        }
         int _ = 0;
-        uint16_t blockSize = readHalf(&data[SPLIT_MESSAGE_INTERNAL_DATA_LEN], _, payloadSize, 0);
+        uint16_t blockSize = readHalf(&data[SPLIT_MESSAGE_INTERNAL_DATA_LEN], _, 2, 0);
+        if (blockSize > SPLIT_MESSAGE_INTERNAL_DATA_LEN) {
+          isProcessingComplete = true;
+          return;
+        }
         splitMessageBuf.insert(splitMessageBuf.end(), data, data + blockSize);
 
         isSplitComplete = data[SPLIT_MESSAGE_INTERNAL_DATA_LEN + 3];
@@ -473,7 +489,7 @@ namespace Slippi {
         {
           // Transform this message into a different message
           command = data[SPLIT_MESSAGE_INTERNAL_DATA_LEN + 2];
-          data = &splitMessageBuf[0];
+          data = splitMessageBuf.data();
           payloadSize = splitMessageBuf.size();
           shouldResetSplitMessageBuf = true;
         }
