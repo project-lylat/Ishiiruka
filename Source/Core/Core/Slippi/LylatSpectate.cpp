@@ -7,16 +7,21 @@
 #include <share.h>
 #endif
 
+#include <unordered_map>
+
+#include <SlippiLib/SlippiGame.h>
 #include <enet/enet.h>
 #include <json.hpp>
 
 #include "Common/Common.h"
 #include "Common/CommonPaths.h"
 #include "Common/FileUtil.h"
+#include "Common/IniFile.h"
 #include "Common/Logging/Log.h"
 #include "Common/StringUtil.h"
 #include "Common/Timer.h"
 #include "Core/ConfigManager.h"
+#include "Core/GeckoCodeConfig.h"
 #include "VideoCommon/OnScreenDisplay.h"
 
 #include "SlippiRustExtensions.h"
@@ -119,6 +124,81 @@ bool ParseJson(const ENetPacket *packet, json &out)
 	std::string text((const char *)packet->data, packet->dataLength);
 	out = json::parse(text, nullptr, false);
 	return !out.is_discarded() && out.is_object();
+}
+
+// Checks a spectated stream's events as they arrive: the payload size table first, then only
+// commands from that table, each with its listed size. A stream comes from another player's
+// Dolphin, so anything else stops the session before it reaches the replay reader.
+class StreamCheck
+{
+  public:
+	// Returns false once the bytes so far are not a well formed stream.
+	bool Feed(const u8 *data, size_t length)
+	{
+		m_pending.insert(m_pending.end(), data, data + length);
+		size_t pos = 0;
+		bool ok = true;
+		while (ok)
+		{
+			size_t left = m_pending.size() - pos;
+			const u8 *p = m_pending.data() + pos;
+			if (!m_haveSizes)
+			{
+				if (left < 2)
+					break;
+				// The length counts itself, followed by 3 bytes per command.
+				u8 len = p[1];
+				ok = p[0] == Slippi::EVENT_PAYLOAD_SIZES && len >= 4 && (len - 1) % 3 == 0;
+				if (!ok || left < 1u + len)
+					break;
+				for (size_t i = 2; i < 1u + len; i += 3)
+					m_sizes[p[i]] = (u16)(p[i + 1] << 8 | p[i + 2]);
+				m_haveSizes = true;
+				pos += 1 + len;
+				continue;
+			}
+			if (left < 1)
+				break;
+			auto size = m_sizes.find(p[0]);
+			ok = size != m_sizes.end() && p[0] != Slippi::EVENT_PAYLOAD_SIZES;
+			if (!ok || left < 1u + size->second)
+				break;
+			if (p[0] == Slippi::EVENT_SPLIT_MESSAGE)
+			{
+				// A data block, its 2 byte length, the inner command and a done flag.
+				const u32 block = Slippi::SPLIT_MESSAGE_INTERNAL_DATA_LEN;
+				ok = size->second >= block + 4 && (u32)(p[1 + block] << 8 | p[2 + block]) <= block;
+				if (!ok)
+					break;
+			}
+			pos += 1 + size->second;
+		}
+		m_pending.erase(m_pending.begin(), m_pending.begin() + pos);
+		return ok;
+	}
+
+  private:
+	bool m_haveSizes = false;
+	std::unordered_map<u8, u16> m_sizes;
+	std::vector<u8> m_pending; // the start of an event still arriving
+};
+
+// The length of the Gecko code that starts at code, as the replay code list splits them.
+u64 GeckoCodeLength(const u8 *code)
+{
+	u32 count = ReadWord(code + 4);
+	switch (code[0] & 0xFE)
+	{
+	case 0xC0:
+	case 0xC2:
+		return 8 + (u64)count * 8;
+	case 0x08:
+		return 16;
+	case 0x06:
+		return 8 + (((u64)count + 7) & ~(u64)7);
+	default:
+		return 8;
+	}
 }
 
 // How long the peer was silent (including ENet's own pings) before this event. A gap of 5 s or
@@ -454,6 +534,57 @@ std::string LylatSpectateViewer::CommPath()
 	return SpectateDir() + "comm.json";
 }
 
+LylatShippedCodes::LylatShippedCodes()
+{
+	// The online codes in Sys/GameSettings, not the playback ones this session boots with.
+	const SConfig &config = SConfig::GetInstance();
+	IniFile ini;
+	for (const std::string &name : SConfig::GetGameIniFilenames(config.GetGameID(), config.m_revision))
+		ini.Load(File::GetSysDirectory() + GAMESETTINGS_DIR DIR_SEP + name, true);
+	std::vector<Gecko::GeckoCode> codes;
+	Gecko::ParseCodes(ini, codes, false);
+
+	for (const Gecko::GeckoCode &code : codes)
+	{
+		std::vector<u8> bytes;
+		for (const Gecko::GeckoCode::Code &line : code.codes)
+		{
+			for (u32 word : {line.address, line.data})
+				bytes.insert(bytes.end(), {(u8)(word >> 24), (u8)(word >> 16), (u8)(word >> 8), (u8)word});
+		}
+		// One ini entry can hold several codes; the replay lists each on its own.
+		size_t at = 0;
+		while (bytes.size() - at >= 8)
+		{
+			u64 length = GeckoCodeLength(bytes.data() + at);
+			if (length > bytes.size() - at)
+				break;
+			m_codes.emplace(std::make_pair(ReadWord(bytes.data() + at), (size_t)length),
+			                std::vector<u8>(bytes.begin() + at, bytes.begin() + at + (size_t)length));
+			at += (size_t)length;
+		}
+	}
+}
+
+const std::vector<u8> *LylatShippedCodes::Find(const u8 *code, size_t length) const
+{
+	const std::vector<u8> *best = nullptr;
+	size_t bestDiff = 0;
+	auto range = m_codes.equal_range(std::make_pair(ReadWord(code), length));
+	for (auto it = range.first; it != range.second; ++it)
+	{
+		size_t diff = 0;
+		for (size_t i = 0; i < length; i++)
+			diff += it->second[i] != code[i];
+		if (!best || diff < bestDiff)
+		{
+			best = &it->second;
+			bestDiff = diff;
+		}
+	}
+	return best;
+}
+
 // The watched games are temporary: they belong to the player being watched.
 static void DeleteSpectateFiles()
 {
@@ -524,6 +655,7 @@ void LylatSpectateViewer::Run()
 	std::string token, sourceName;
 	File::IOFile file;
 	std::string filePath;
+	StreamCheck check;
 	u64 written = 0;
 	bool commPointed = false;
 	u64 lastKeepAliveAt = 0;
@@ -562,6 +694,7 @@ void LylatSpectateViewer::Run()
 		file = File::IOFile(filePath, "wb");
 #endif
 		written = 0;
+		check = StreamCheck();
 		commPointed = false;
 	};
 
@@ -637,6 +770,15 @@ void LylatSpectateViewer::Run()
 						if (cursor > written || end <= written)
 							break; // a gap, or bytes we already have
 						size_t skip = (size_t)(written - cursor);
+						if (end > MAX_STREAM || !check.Feed(data + 5 + skip, length - 5 - skip))
+						{
+							ERROR_LOG(SLIPPI_ONLINE, "[Spectate] Stopped: the stream is not a valid game after %llu bytes",
+							          (unsigned long long)written);
+							Show(Status::Refused, "This game's data is not valid. Stopped watching.");
+							file.Close();
+							done = true;
+							break;
+						}
 						file.WriteBytes(data + 5 + skip, length - 5 - skip);
 						file.Flush();
 						written = end;
