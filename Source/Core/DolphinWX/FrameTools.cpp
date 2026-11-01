@@ -2,7 +2,9 @@
 // Licensed under GPLv2+
 // Refer to the license.txt file included.
 
+#include <algorithm>
 #include <array>
+#include <cctype>
 #include <cstdarg>
 #include <cstdio>
 #include <mutex>
@@ -18,6 +20,7 @@
 #include <wx/panel.h>
 #include <wx/progdlg.h>
 #include <wx/statusbr.h>
+#include <wx/textdlg.h>
 #include <wx/thread.h>
 #include <wx/toolbar.h>
 #include <wx/toplevel.h>
@@ -128,6 +131,7 @@ void CFrame::BindMenuBarEvents()
 
 	// Emulation menu
 	Bind(wxEVT_MENU, &CFrame::OnPlay, this, IDM_PLAY);
+	Bind(wxEVT_MENU, &CFrame::OnLylatSpectate, this, IDM_LYLAT_SPECTATE);
 	Bind(wxEVT_MENU, &CFrame::OnStop, this, IDM_STOP);
 	Bind(wxEVT_MENU, &CFrame::OnReset, this, IDM_RESET);
 	Bind(wxEVT_MENU, &CFrame::OnToggleFullscreen, this, IDM_TOGGLE_FULLSCREEN);
@@ -557,6 +561,85 @@ void CFrame::OnPlay(wxCommandEvent& WXUNUSED(event))
 	}
 }
 
+// Melee for a spectate session: the selected game, any Melee in the list, then the saved paths.
+static std::string FindMeleeIso(const CGameListCtrl *games)
+{
+	const GameListItem *selected = games->GetSelectedISO();
+	if (selected && selected->IsValid() && selected->GetGameID() == "GALE01")
+		return selected->GetFileName();
+
+	for (size_t i = 0; const GameListItem *item = games->GetISO(i); i++)
+	{
+		if (item->IsValid() && item->GetGameID() == "GALE01")
+			return item->GetFileName();
+	}
+
+	const SConfig &config = SConfig::GetInstance();
+	if (!config.m_strDefaultISO.empty() && File::Exists(config.m_strDefaultISO))
+		return config.m_strDefaultISO;
+	if (!config.m_LastFilename.empty() && File::Exists(config.m_LastFilename))
+		return config.m_LastFilename;
+	return "";
+}
+
+static bool IsConnectCode(const std::string &code)
+{
+	size_t hash = code.find('#');
+	if (hash == std::string::npos || hash == 0 || hash > 7 || hash + 1 == code.size())
+		return false;
+	for (size_t i = hash + 1; i < code.size(); i++)
+	{
+		if (!isdigit((unsigned char)code[i]))
+			return false;
+	}
+	return true;
+}
+
+void CFrame::OnLylatSpectate(wxCommandEvent &WXUNUSED(event))
+{
+	if (Core::GetState() != Core::CORE_UNINITIALIZED)
+		return;
+
+	SConfig &config = SConfig::GetInstance();
+	if (!File::Exists(File::GetSlippiUserJSONPath()))
+	{
+		wxMessageBox(_("Log in to Lylat to spectate. Start Melee and open Online Play to log in."), _("Spectate"),
+		             wxOK | wxICON_INFORMATION, this);
+		return;
+	}
+
+	wxTextEntryDialog dialog(this, _("Enter the connect code of the player you want to watch."), _("Spectate"),
+	                         StrToWxStr(config.m_lylatLastSpectateCode));
+	if (dialog.ShowModal() != wxID_OK)
+		return;
+
+	std::string code = WxStrToStr(dialog.GetValue());
+	code = StripSpaces(code);
+	std::transform(code.begin(), code.end(), code.begin(), ::toupper);
+	if (!IsConnectCode(code))
+	{
+		wxMessageBox(_("Enter a connect code like ABCD#123."), _("Spectate"), wxOK | wxICON_INFORMATION, this);
+		return;
+	}
+
+	std::string melee = FindMeleeIso(m_GameListCtrl);
+	if (melee.empty())
+	{
+		wxMessageBox(_("Add your Melee ISO to the game list to spectate."), _("Spectate"), wxOK | wxICON_INFORMATION,
+		             this);
+		return;
+	}
+
+	config.m_lylatLastSpectateCode = code;
+	config.SaveSettings();
+
+	// The session lasts until the game stops (OnStopped clears it).
+	config.m_lylatSpectateCode = code;
+	BootGame(melee);
+	if (Core::GetState() == Core::CORE_UNINITIALIZED)
+		config.m_lylatSpectateCode.clear();
+}
+
 void CFrame::OnRenderParentClose(wxCloseEvent& event)
 {
 	// Before closing the window we need to shut down the emulation core.
@@ -960,6 +1043,7 @@ bool CFrame::TriggerSTMPowerEvent()
 void CFrame::OnStopped()
 {
 	m_confirmStop = false;
+	SConfig::GetInstance().m_lylatSpectateCode.clear();
 	m_tried_graceful_shutdown = false;
 
 #if defined(HAVE_X11) && HAVE_X11
