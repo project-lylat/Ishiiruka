@@ -40,6 +40,10 @@ enum RelayType : u8
 constexpr u16 DEFAULT_MM_PORT = 43113;
 constexpr size_t EVENT_CHUNK = 16 * 1024;
 constexpr u32 MAX_IN_FLIGHT = 512 * 1024;
+// enet_peer_send only queues: reliableDataInTransit counts what ENet already sent. Queuing stops
+// while this many commands still wait, so a reconnect does not queue the whole game at once.
+constexpr size_t MAX_QUEUED_COMMANDS = 64;
+constexpr u64 MM_RETRY_MS = 2000;
 constexpr size_t MAX_STREAM = 64 * 1024 * 1024;
 constexpr u64 PRESENCE_HEARTBEAT_MS = 10000;
 constexpr u64 KEEP_ALIVE_MS = 2000;
@@ -115,6 +119,14 @@ bool ParseJson(const ENetPacket *packet, json &out)
 	std::string text((const char *)packet->data, packet->dataLength);
 	out = json::parse(text, nullptr, false);
 	return !out.is_discarded() && out.is_object();
+}
+
+// How long the peer was silent (including ENet's own pings) before this event. A gap of 5 s or
+// more before a disconnect means an ENet timeout rather than a close from the other side.
+unsigned long long SilenceMs(const ENetHost *host, const ENetPeer *peer)
+{
+	// ENet times are 32-bit milliseconds; unsigned subtraction handles the wrap.
+	return (enet_uint32)(host->serviceTime - peer->lastReceiveTime);
 }
 
 std::string SpectateDir()
@@ -308,7 +320,8 @@ void LylatSpectateSource::Run()
 			}
 			if (relayGame == gameIndex)
 			{
-				while (sent < size && relay->reliableDataInTransit < MAX_IN_FLIGHT)
+				while (sent < size && relay->reliableDataInTransit < MAX_IN_FLIGHT &&
+				       enet_list_size(&relay->outgoingReliableCommands) < MAX_QUEUED_COMMANDS)
 				{
 					std::vector<u8> chunk;
 					{
@@ -360,7 +373,11 @@ void LylatSpectateSource::Run()
 					{
 						std::string error = msg.value("error", "");
 						if (!error.empty())
+						{
 							WARN_LOG(SLIPPI_ONLINE, "[Spectate] Presence refused: %s", error.c_str());
+							// The match is over on the server: stop the heartbeat until the next game.
+							lastPresence.clear();
+						}
 						auto info = msg.find("relay");
 						if (info != msg.end() && info->is_object())
 						{
@@ -390,6 +407,9 @@ void LylatSpectateSource::Run()
 				}
 				else if (ev.peer == relay)
 				{
+					WARN_LOG(SLIPPI_ONLINE,
+					         "[Spectate] The relay link closed after %zu of %zu bytes of game %d, silent %llu ms, rtt %u ms",
+					         sent, size, gameIndex, SilenceMs(host, ev.peer), ev.peer->roundTripTime);
 					relay = nullptr;
 					relayUp = false;
 					relayRetryAt = Common::Timer::GetTimeMs() + RELAY_RETRY_MS;
@@ -493,6 +513,7 @@ void LylatSpectateViewer::Run()
 	ENetAddress mmAddr;
 	MatchmakingAddress(mmAddr);
 	ENetPeer *mm = enet_host_connect(host, &mmAddr, SPECTATE_CHANNELS, 0);
+	u64 mmRetryAt = 0;
 	ENetPeer *relay = nullptr;
 	std::string token, sourceName;
 	File::IOFile file;
@@ -559,6 +580,8 @@ void LylatSpectateViewer::Run()
 						break;
 					std::string type = msg.value("type", "");
 					std::string error = msg.value("error", "");
+					INFO_LOG(SLIPPI_ONLINE, "[Spectate] Daemon: %s %s %s", type.c_str(), msg.value("state", "").c_str(),
+					         error.c_str());
 					if (type == "spectate-request-resp" && !error.empty())
 					{
 						Show(Status::Refused, error);
@@ -632,9 +655,12 @@ void LylatSpectateViewer::Run()
 			case ENET_EVENT_TYPE_DISCONNECT:
 				if (ev.peer == mm)
 				{
-					Show(Status::Refused, "Lost the connection to Lylat.");
+					// Ask again on a new connection; the server dropped the old request with it.
+					WARN_LOG(SLIPPI_ONLINE, "[Spectate] The daemon connection closed (data %u), silent %llu ms",
+					         ev.data, SilenceMs(host, ev.peer));
+					Show(Status::Connecting, "Reconnecting to Lylat...");
 					mm = nullptr;
-					done = true;
+					mmRetryAt = Common::Timer::GetTimeMs() + MM_RETRY_MS;
 				}
 				else if (ev.peer == relay)
 				{
@@ -648,6 +674,11 @@ void LylatSpectateViewer::Run()
 		}
 
 		u64 now = Common::Timer::GetTimeMs();
+		if (!mm && now >= mmRetryAt)
+		{
+			mm = enet_host_connect(host, &mmAddr, SPECTATE_CHANNELS, 0);
+			mmRetryAt = now + MM_RETRY_MS;
+		}
 		if (relay && now - lastKeepAliveAt >= KEEP_ALIVE_MS)
 		{
 			SendRelay(relay, KEEP_ALIVE, 0);
