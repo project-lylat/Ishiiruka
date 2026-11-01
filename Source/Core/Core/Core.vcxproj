@@ -330,6 +330,7 @@
     <ClCompile Include="Slippi\SlippiTimer.cpp" />
     <ClCompile Include="Slippi\SlippiGameFileLoader.cpp" />
     <ClCompile Include="Slippi\LylatMatchmaking.cpp" />
+    <ClCompile Include="Slippi\LylatSpectate.cpp" />
     <ClCompile Include="Slippi\SlippiMatchmaking.cpp" />
     <ClCompile Include="Slippi\SlippiNetplay.cpp" />
     <ClCompile Include="Slippi\SlippiPad.cpp" />
@@ -537,6 +538,7 @@
     <ClInclude Include="Slippi\SlippiTimer.h" />
     <ClInclude Include="Slippi\SlippiGameFileLoader.h" />
     <ClInclude Include="Slippi\LylatMatchmaking.h" />
+    <ClInclude Include="Slippi\LylatSpectate.h" />
     <ClInclude Include="Slippi\SlippiMatchmaking.h" />
     <ClInclude Include="Slippi\SlippiNetplay.h" />
     <ClInclude Include="Slippi\SlippiPad.h" />

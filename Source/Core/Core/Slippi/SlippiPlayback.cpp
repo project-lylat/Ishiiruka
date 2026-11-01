@@ -68,11 +68,14 @@ SlippiPlaybackStatus::SlippiPlaybackStatus()
 	prevOCEnable = SConfig::GetInstance().m_OCEnable;
 	prevOCFactor = SConfig::GetInstance().m_OCFactor;
 
-	// Only generate these if this is a playback configuration. Should this class get initialized at all?
-	#ifdef IS_PLAYBACK
-	generateDenylist();
-	generateLegacyCodelist();
+	// Only generate these if this is a playback configuration or a spectate session.
+	#ifndef IS_PLAYBACK
+	if (!SConfig::GetInstance().m_lylatSpectateCode.empty())
 	#endif
+	{
+		generateDenylist();
+		generateLegacyCodelist();
+	}
 }
 
 void SlippiPlaybackStatus::startThreads()

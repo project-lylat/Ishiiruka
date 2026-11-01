@@ -5,6 +5,7 @@
 #include "Core/Debugger/Debugger_SymbolMap.h"
 #include <algorithm>
 
+#include "Core/Slippi/LylatSpectate.h"
 #include "Core/Slippi/SlippiPlayback.h"
 #include "Core/Slippi/SlippiPremadeText.h"
 #include "Core/Slippi/SlippiReplayComm.h"
@@ -175,6 +176,14 @@ CEXISlippi::CEXISlippi()
 	g_playbackStatus = std::make_unique<SlippiPlaybackStatus>();
 	matchmaking = CreateMatchmaker(slprs_exi_device_ptr, user.get(), lylatServers, isMex);
 	gameFileLoader = std::make_unique<SlippiGameFileLoader>();
+	if (!SConfig::GetInstance().m_lylatSpectateCode.empty())
+	{
+		// A spectate session plays the relayed stream in mirror mode: the viewer writes the
+		// stream and the comm file that the replay reader follows.
+		m_slippiInputBeforeSpectate = SConfig::GetInstance().m_strSlippiInput;
+		LylatSpectateViewer::Start(SConfig::GetInstance().m_lylatSpectateCode, user.get());
+		SConfig::GetInstance().m_strSlippiInput = LylatSpectateViewer::CommPath();
+	}
 	g_replayComm = std::make_unique<SlippiReplayComm>();
 	directCodes = std::make_unique<SlippiDirectCodes>(slprs_exi_device_ptr, SlippiDirectCodes::DIRECT);
 	teamsCodes = std::make_unique<SlippiDirectCodes>(slprs_exi_device_ptr, SlippiDirectCodes::TEAMS);
@@ -226,6 +235,13 @@ CEXISlippi::~CEXISlippi()
 		m_fileWriteThread.join();
 	}
 	m_slippiserver->endGame(true);
+
+	if (!SConfig::GetInstance().m_lylatSpectateCode.empty())
+	{
+		LylatSpectateViewer::Stop();
+		SConfig::GetInstance().m_strSlippiInput = m_slippiInputBeforeSpectate;
+	}
+	LylatSpectateSource::Get().Leave();
 
 	// Try to determine whether we were playing an in-progress ranked match, if so
 	// indicate to server that this client has abandoned. Anyone trying to modify
@@ -413,7 +429,9 @@ std::vector<u8> CEXISlippi::generateMetadata()
 void CEXISlippi::writeToFileAsync(u8 *payload, u32 length, std::string fileOption)
 {
 #ifndef IS_PLAYBACK
-	bool shouldSaveReplays = SConfig::GetInstance().m_slippiSaveReplays;
+	// A watched game is not saved: it belongs to the player being watched.
+	bool shouldSaveReplays =
+	    SConfig::GetInstance().m_slippiSaveReplays && SConfig::GetInstance().m_lylatSpectateCode.empty();
 #else
 	bool shouldSaveReplays = SConfig::GetInstance().m_slippiRegenerateReplays;
 #endif
@@ -466,6 +484,7 @@ void CEXISlippi::writeRecordingEvent(u8 *payload, u32 length, std::string fileOp
 {
 	writeToFileAsync(payload, length, fileOption);
 	m_slippiserver->write(payload, length);
+	LylatSpectateSource::Get().Write(payload, length);
 	slprs_exi_device_reporter_push_replay_data(slprs_exi_device_ptr, payload, length);
 }
 
@@ -3300,6 +3319,9 @@ void CEXISlippi::handleConnectionCleanup()
 {
 	ERROR_LOG(SLIPPI_ONLINE, "Connection cleanup started...");
 
+	// The set is over: spectators stop waiting for this player's next game.
+	LylatSpectateSource::Get().Leave();
+
 	// Handle destructors in a separate thread to not block the main thread
 	std::thread cleanup(doConnectionCleanup, std::move(matchmaking), std::move(slippi_netplay));
 	cleanup.detach();
@@ -3667,6 +3689,11 @@ void CEXISlippi::DMAWrite(u32 _uAddr, u32 _uSize)
 		m_slippiserver->startGame();
 		m_slippiserver->write(&memPtr[0], receiveCommandsLen + 1);
 
+		// Online games go to the Lylat relay when the player allows spectators.
+		if (slippi_netplay && SConfig::GetInstance().m_lylatSpectateCode.empty())
+			LylatSpectateSource::Get().GameStart(recentMmResult.id, user->GetUserInfo());
+		LylatSpectateSource::Get().Write(&memPtr[0], receiveCommandsLen + 1);
+
 		slprs_exi_device_reporter_push_replay_data(slprs_exi_device_ptr, &memPtr[0], receiveCommandsLen + 1);
 	}
 
@@ -3701,6 +3728,8 @@ void CEXISlippi::DMAWrite(u32 _uAddr, u32 _uSize)
 			writeToFileAsync(&memPtr[bufLoc], payloadLen + 1, "close");
 			m_slippiserver->write(&memPtr[bufLoc], payloadLen + 1);
 			m_slippiserver->endGame();
+			LylatSpectateSource::Get().Write(&memPtr[bufLoc], payloadLen + 1);
+			LylatSpectateSource::Get().GameEnd();
 			slprs_exi_device_reporter_push_replay_data(slprs_exi_device_ptr, &memPtr[bufLoc], payloadLen + 1);
 			break;
 		case CMD_PREPARE_REPLAY:
@@ -3714,6 +3743,7 @@ void CEXISlippi::DMAWrite(u32 _uAddr, u32 _uSize)
 			g_needInputForFrame = true;
 			writeToFileAsync(&memPtr[bufLoc], payloadLen + 1, "");
 			m_slippiserver->write(&memPtr[bufLoc], payloadLen + 1);
+			LylatSpectateSource::Get().Write(&memPtr[bufLoc], payloadLen + 1);
 			slprs_exi_device_reporter_push_replay_data(slprs_exi_device_ptr, &memPtr[bufLoc], payloadLen + 1);
 			break;
 		case CMD_IS_STOCK_STEAL:
@@ -3893,7 +3923,9 @@ void CEXISlippi::ConfigureJukebox()
 		return;
 	}
 
-	bool jukeboxEnabled = SConfig::GetInstance().bSlippiJukeboxEnabled;
+	// The playback codes of a spectate session play the game's own music, as a playback build does.
+	bool jukeboxEnabled =
+	    SConfig::GetInstance().bSlippiJukeboxEnabled && SConfig::GetInstance().m_lylatSpectateCode.empty();
 	int systemVolume = SConfig::GetInstance().m_IsMuted ? 0 : SConfig::GetInstance().m_Volume;
 	int jukeboxVolume = SConfig::GetInstance().iSlippiJukeboxVolume;
 

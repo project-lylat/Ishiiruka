@@ -172,6 +172,10 @@ struct SConfig : NonCopyable
 	bool m_slippiCustomMMEnabled = true;
 	bool m_lylatUploadReplays = true;
 	bool m_lylatBookmarks = true;
+	bool m_lylatAllowSpectators = false;
+	std::string m_lylatLastSpectateCode;
+	// The connect code of the player being watched; empty outside a spectate session. Not saved.
+	std::string m_lylatSpectateCode;
 	std::string m_slippiLanIp = "";
 	bool m_meleeUserIniBootstrapped = false;
 	bool m_blockingPipes = false;
