@@ -178,8 +178,6 @@ class StreamCheck
 		return ok;
 	}
 
-	// A Game End event for a stream that stopped between events without one, so playback ends the
-	// game instead of waiting on its last frame; empty when the stream needs none or can't take one.
 	std::vector<u8> MissingGameEnd() const
 	{
 		auto size = m_sizes.find(Slippi::EVENT_GAME_END);
@@ -698,8 +696,7 @@ void LylatSpectateViewer::Run()
 		Show(Status::Live, "Watching " + sourceName);
 	};
 
-	// The relay link can close before a game's last bytes arrive. Without a Game End event the
-	// replay reader waits on the last frame forever, so the viewer ends the game itself.
+	// Without a Game End, playback waits on the last frame forever.
 	auto finishFile = [&]() {
 		if (!file.IsOpen())
 			return;
