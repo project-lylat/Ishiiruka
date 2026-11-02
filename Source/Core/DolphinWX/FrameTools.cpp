@@ -633,7 +633,6 @@ void CFrame::OnLylatSpectate(wxCommandEvent &WXUNUSED(event))
 	config.m_lylatLastSpectateCode = code;
 	config.SaveSettings();
 
-	// The session lasts until the game stops (OnStopped clears it).
 	config.m_lylatSpectateCode = code;
 	BootGame(melee);
 	// The core starts on its own thread; a failed boot is the only case that leaves this unset.
