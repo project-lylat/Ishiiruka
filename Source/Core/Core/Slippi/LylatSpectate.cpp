@@ -334,25 +334,39 @@ void LylatSpectateSource::Run()
 	int relayGame = -1; // the game announced on the current relay link
 	size_t sent = 0;    // stream bytes sent on the current relay link
 	int doneGame = -1;  // the last game whose end_game went out
-	std::string lastPresence;
+	std::string streamMatch, lastPresence;
 	u64 lastPresenceAt = 0, lastKeepAliveAt = 0, relayRetryAt = 0;
 
 	while (m_running)
 	{
 		u64 now = Common::Timer::GetTimeMs();
 		int gameIndex;
-		bool inGame, left, hasMatch;
+		bool inGame, left;
 		size_t size;
+		std::string matchId;
 		std::vector<std::string> presence;
 		{
 			std::lock_guard<std::mutex> lock(m_mutex);
 			gameIndex = m_gameIndex;
 			inGame = m_inGame;
 			left = m_left;
-			hasMatch = !m_matchId.empty();
+			matchId = m_matchId;
 			size = m_stream.size();
 			if (mmUp)
 				presence.swap(m_presence);
+		}
+		bool hasMatch = !matchId.empty();
+
+		// Game indexes restart with each match.
+		if (matchId != streamMatch)
+		{
+			streamMatch = matchId;
+			doneGame = -1;
+			token.clear();
+			if (relay)
+				enet_peer_disconnect_later(relay, 0);
+			relay = nullptr;
+			relayUp = false;
 		}
 
 		if (!mm && hasMatch && !left)
