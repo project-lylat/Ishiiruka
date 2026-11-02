@@ -1,22 +1,6 @@
 #pragma once
 
-// Spectating through Lylat. Every stream goes through the Lylat relay: the
-// player being watched publishes one stream, the relay sends it to every
-// spectator, and nobody learns anyone else's address.
-//
-// Matchmaking daemon (ENet JSON, the matchmaking port): spectate-presence from
-// a source, spectate-request and spectate-cancel from a spectator, and the
-// spectate-start and spectate-end pushes.
-//
-// Relay (ENet binary, channel 0, reliable): u8 type, u32 BE cursor, payload.
-//   1 connect_request  spectator to relay; payload: the session token
-//   2 connect_reply    relay to spectator; payload: u32 BE game index, u8 in_game
-//   3 start_game       source to relay, relay to spectator; payload: u32 BE game index
-//   4 game_event       raw .slp event bytes; cursor = stream offset of the first byte
-//   5 end_game         cursor = final offset
-//   6 keep_alive       both ways
-//   7 refused          relay to either; payload: text for the player
-//   8 publish          source to relay; payload: the publish token
+// Spectating through the Lylat relay. Relay messages: u8 type, u32 BE cursor, payload.
 
 #include <atomic>
 #include <mutex>
@@ -33,12 +17,10 @@ class LylatSpectateSource
   public:
 	static LylatSpectateSource &Get();
 
-	// Called from the EXI device on the CPU thread. A game starts with the
-	// match it belongs to; bytes written after that are the game's stream.
+	// Called from the EXI device on the CPU thread.
 	void GameStart(const std::string &matchId, const SlippiUser::UserInfo &user);
 	void Write(const u8 *data, u32 length);
 	void GameEnd();
-	// The set is over (connection cleanup or the device closing).
 	void Leave();
 
 	LylatSpectateSource(LylatSpectateSource const &) = delete;
@@ -61,20 +43,16 @@ class LylatSpectateSource
 	bool m_inGame = false;
 	bool m_left = true;
 	std::vector<u8> m_stream;
-	std::vector<std::string> m_presence; // states waiting to be sent
+	std::vector<std::string> m_presence;
 };
 
-// The Gecko codes this build ships for the running game. A spectated replay's code list comes from
-// another player's Dolphin, so the viewer runs this build's copy of each code instead of the sent one.
+// The Gecko codes this build ships, run in place of a spectated replay's codes.
 class LylatShippedCodes
 {
   public:
 	LylatShippedCodes();
 
-	// This build's copy of the replay's code, or nullptr when the build ships no code with the same
-	// first line and length. A replay holds codes as they sat in memory: the branch back the code
-	// handler writes and the data some codes keep inside themselves differ from the ini, so the copy
-	// with the fewest different bytes wins.
+	// The closest shipped code with the same first word and length, or nullptr.
 	const std::vector<u8> *Find(const u8 *code, size_t length) const;
 
   private:
@@ -93,8 +71,6 @@ class LylatSpectateViewer
 		Ended,
 	};
 
-	// Starts watching connectCode. The stream goes to files in
-	// User/Slippi/Spectate and the mirror comm file at CommPath().
 	static void Start(const std::string &connectCode, SlippiUser *user);
 	static void Stop();
 	static std::string CommPath();

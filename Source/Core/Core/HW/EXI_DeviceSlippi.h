@@ -402,7 +402,6 @@ class CEXISlippi : public IEXIDevice
 	SlippiPlayerSelections localSelections;
 
 	std::unique_ptr<SlippiUser> user;
-	// m_strSlippiInput from before a spectate session, restored when it ends.
 	std::string m_slippiInputBeforeSpectate;
 	std::unique_ptr<SlippiGameFileLoader> gameFileLoader;
 	std::unique_ptr<SlippiNetplayClient> slippi_netplay;

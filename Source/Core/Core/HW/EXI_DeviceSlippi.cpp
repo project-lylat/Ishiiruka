@@ -179,8 +179,7 @@ CEXISlippi::CEXISlippi()
 	gameFileLoader = std::make_unique<SlippiGameFileLoader>();
 	if (!SConfig::GetInstance().m_lylatSpectateCode.empty())
 	{
-		// A spectate session plays the relayed stream in mirror mode: the viewer writes the
-		// stream and the comm file that the replay reader follows.
+		// The viewer writes the stream and the mirror comm file the replay reader follows.
 		m_slippiInputBeforeSpectate = SConfig::GetInstance().m_strSlippiInput;
 		LylatSpectateViewer::Start(SConfig::GetInstance().m_lylatSpectateCode, user.get());
 		SConfig::GetInstance().m_strSlippiInput = LylatSpectateViewer::CommPath();
@@ -430,7 +429,6 @@ std::vector<u8> CEXISlippi::generateMetadata()
 void CEXISlippi::writeToFileAsync(u8 *payload, u32 length, std::string fileOption)
 {
 #ifndef IS_PLAYBACK
-	// A watched game is not saved: it belongs to the player being watched.
 	bool shouldSaveReplays =
 	    SConfig::GetInstance().m_slippiSaveReplays && SConfig::GetInstance().m_lylatSpectateCode.empty();
 #else
@@ -1061,8 +1059,7 @@ void CEXISlippi::prepareGeckoList()
 	std::vector<u8> source = settings->geckoCodes;
 	INFO_LOG(SLIPPI, "Booting codes with source size: %d", source.size());
 
-	// A spectated game's code list comes from another player's Dolphin: run this build's copy of
-	// each code instead, so nobody can send code to the people watching them.
+	// Spectating runs this build's copy of each code, never the sender's bytes.
 	std::unique_ptr<LylatShippedCodes> shipped;
 	if (!SConfig::GetInstance().m_lylatSpectateCode.empty())
 		shipped = std::make_unique<LylatShippedCodes>();
@@ -3361,7 +3358,6 @@ void CEXISlippi::handleConnectionCleanup()
 {
 	ERROR_LOG(SLIPPI_ONLINE, "Connection cleanup started...");
 
-	// The set is over: spectators stop waiting for this player's next game.
 	LylatSpectateSource::Get().Leave();
 
 	// Handle destructors in a separate thread to not block the main thread
@@ -3731,7 +3727,6 @@ void CEXISlippi::DMAWrite(u32 _uAddr, u32 _uSize)
 		m_slippiserver->startGame();
 		m_slippiserver->write(&memPtr[0], receiveCommandsLen + 1);
 
-		// Online games go to the Lylat relay when the player allows spectators.
 		if (slippi_netplay && SConfig::GetInstance().m_lylatSpectateCode.empty())
 			LylatSpectateSource::Get().GameStart(recentMmResult.id, user->GetUserInfo());
 		LylatSpectateSource::Get().Write(&memPtr[0], receiveCommandsLen + 1);
@@ -3965,7 +3960,6 @@ void CEXISlippi::ConfigureJukebox()
 		return;
 	}
 
-	// The playback codes of a spectate session play the game's own music, as a playback build does.
 	bool jukeboxEnabled =
 	    SConfig::GetInstance().bSlippiJukeboxEnabled && SConfig::GetInstance().m_lylatSpectateCode.empty();
 	int systemVolume = SConfig::GetInstance().m_IsMuted ? 0 : SConfig::GetInstance().m_Volume;

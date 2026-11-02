@@ -174,7 +174,7 @@ struct SConfig : NonCopyable
 	bool m_lylatBookmarks = true;
 	bool m_lylatAllowSpectators = false;
 	std::string m_lylatLastSpectateCode;
-	// The connect code of the player being watched; empty outside a spectate session. Not saved.
+	// Empty outside a spectate session; not saved.
 	std::string m_lylatSpectateCode;
 	std::string m_slippiLanIp = "";
 	bool m_meleeUserIniBootstrapped = false;

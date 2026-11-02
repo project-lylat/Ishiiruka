@@ -45,8 +45,7 @@ enum RelayType : u8
 constexpr u16 DEFAULT_MM_PORT = 43113;
 constexpr size_t EVENT_CHUNK = 16 * 1024;
 constexpr u32 MAX_IN_FLIGHT = 512 * 1024;
-// enet_peer_send only queues: reliableDataInTransit counts what ENet already sent. Queuing stops
-// while this many commands still wait, so a reconnect does not queue the whole game at once.
+// Caps the ENet send queue so a reconnect does not queue the whole game at once.
 constexpr size_t MAX_QUEUED_COMMANDS = 64;
 constexpr u64 MM_RETRY_MS = 2000;
 constexpr size_t MAX_STREAM = 64 * 1024 * 1024;
@@ -126,13 +125,10 @@ bool ParseJson(const ENetPacket *packet, json &out)
 	return !out.is_discarded() && out.is_object();
 }
 
-// Checks a spectated stream's events as they arrive: the payload size table first, then only
-// commands from that table, each with its listed size. A stream comes from another player's
-// Dolphin, so anything else stops the session before it reaches the replay reader.
+// Rejects a stream that breaks its payload size table.
 class StreamCheck
 {
   public:
-	// Returns false once the bytes so far are not a well formed stream.
 	bool Feed(const u8 *data, size_t length)
 	{
 		m_pending.insert(m_pending.end(), data, data + length);
@@ -171,19 +167,30 @@ class StreamCheck
 				if (!ok)
 					break;
 			}
+			m_ended |= p[0] == Slippi::EVENT_GAME_END;
 			pos += 1 + size->second;
 		}
 		m_pending.erase(m_pending.begin(), m_pending.begin() + pos);
 		return ok;
 	}
 
+	std::vector<u8> MissingGameEnd() const
+	{
+		auto size = m_sizes.find(Slippi::EVENT_GAME_END);
+		if (!m_haveSizes || m_ended || !m_pending.empty() || size == m_sizes.end())
+			return {};
+		std::vector<u8> event(1 + size->second, 0);
+		event[0] = Slippi::EVENT_GAME_END;
+		return event;
+	}
+
   private:
+	bool m_ended = false;
 	bool m_haveSizes = false;
 	std::unordered_map<u8, u16> m_sizes;
 	std::vector<u8> m_pending; // the start of an event still arriving
 };
 
-// The length of the Gecko code that starts at code, as the replay code list splits them.
 u64 GeckoCodeLength(const u8 *code)
 {
 	u32 count = ReadWord(code + 4);
@@ -201,9 +208,7 @@ u64 GeckoCodeLength(const u8 *code)
 	}
 }
 
-// How long the peer was silent (including ENet's own pings) before this event. A gap of 5 s or
-// more before a disconnect means an ENet timeout rather than a close from the other side. ENet resets
-// the peer before it reports the disconnect, so callers pass the receive time saved before servicing.
+// How long the peer was silent before this event; 5 s or more means an ENet timeout.
 unsigned long long SilenceMs(const ENetHost *host, enet_uint32 lastReceiveTime)
 {
 	// ENet times are 32-bit milliseconds; unsigned subtraction handles the wrap.
@@ -625,7 +630,6 @@ void LylatSpectateViewer::WriteComm(const std::string &replayPath)
 void LylatSpectateViewer::Show(Status status, const std::string &text)
 {
 	NOTICE_LOG(SLIPPI_ONLINE, "[Spectate] %s", text.c_str());
-	// One status line at a time: each new status replaces the last one.
 	u32 ms = status == Status::Live ? 4000 : status == Status::Refused ? 15000 : 600000;
 	OSD::AddTypedMessage(OSD::MessageType::SpectateStatus, text, ms);
 }
@@ -684,7 +688,22 @@ void LylatSpectateViewer::Run()
 		Show(Status::Live, "Watching " + sourceName);
 	};
 
+	// Without a Game End, playback waits on the last frame forever.
+	auto finishFile = [&]() {
+		if (!file.IsOpen())
+			return;
+		std::vector<u8> end = check.MissingGameEnd();
+		if (!end.empty())
+		{
+			WARN_LOG(SLIPPI_ONLINE, "[Spectate] The stream stopped after %llu bytes without a Game End; ending the game",
+			         (unsigned long long)written);
+			file.WriteBytes(end.data(), end.size());
+		}
+		file.Close();
+	};
+
 	auto newFile = [&]() {
+		finishFile();
 		m_fileCount++;
 		filePath = SpectateDir() + StringFromFormat("game-%d.slp", m_fileCount);
 #ifdef _WIN32
@@ -738,8 +757,7 @@ void LylatSpectateViewer::Run()
 					}
 					else if (type == "spectate-end")
 					{
-						// The relay closes the link after end_game. This push can arrive before the relay's
-						// last bytes, so the link stays open until then.
+						// The relay's last bytes can arrive after this push, so the link stays open.
 						std::string reason = msg.value("reason", "");
 						if (reason == "game_end")
 						{
@@ -790,7 +808,7 @@ void LylatSpectateViewer::Run()
 						break;
 					}
 					case END_GAME:
-						file.Close();
+						finishFile();
 						break;
 					case REFUSED:
 						Show(Status::Refused, std::string((const char *)data + 5, length - 5));
@@ -814,7 +832,7 @@ void LylatSpectateViewer::Run()
 				else if (ev.peer == relay)
 				{
 					relay = nullptr;
-					file.Close();
+					finishFile();
 				}
 				break;
 			default:
