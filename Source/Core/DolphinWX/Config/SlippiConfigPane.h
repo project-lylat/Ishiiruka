@@ -45,7 +45,7 @@ class SlippiNetplayConfigPane final : public wxPanel
 	void OnLylatAllowSpectatorsToggle(wxCommandEvent &event);
 
 	void OnQuickChatChanged(wxCommandEvent &event);
-	void OnReduceTimingDispersionToggle(wxCommandEvent &event);
+	void OnInputSuggestionsToggle(wxCommandEvent &event);
 	void PopulateEnableChatChoiceBox();
 	void OnToggleJukeboxEnabled(wxCommandEvent &event);
 	void OnJukeboxVolumeUpdate(wxCommandEvent &event);
@@ -70,7 +70,7 @@ class SlippiNetplayConfigPane final : public wxPanel
 	wxCheckBox *m_lylat_bookmarks_checkbox;
 	wxCheckBox *m_lylat_allow_spectators_checkbox;
 
-	wxCheckBox *m_reduce_timing_dispersion_checkbox;
+	wxCheckBox *m_slippi_input_suggestions_checkbox;
 
 	wxCheckBox *m_slippi_show_player_rank;
 	wxCheckBox *m_slippi_show_opponent_rank;

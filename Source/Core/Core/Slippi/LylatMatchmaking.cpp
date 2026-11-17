@@ -636,6 +636,7 @@ void LylatMatchmaking::handleMatchmaking()
 				playerInfo.rankedUpdateCount = rankEl.value("updateCount", 0);
 				playerInfo.rankedGlobalPlacement = rankEl.value("globalPlacement", 0);
 				playerInfo.rankedRegionalPlacement = rankEl.value("regionalPlacement", 0);
+				playerInfo.rankedMmr = rankEl.value("mmr", 0.0f);
 			}
 
 			m_playerInfo.push_back(playerInfo);
